@@ -1,0 +1,48 @@
+# setup
+matter = gas
+case = channel
+space = 2d2f2v
+flux = kfvs
+collision = shakhov
+nSpecies = 1
+interpOrder = 2
+limiter = vanleer
+boundary = maxwell
+cfl = 0.8
+maxTime = 2.0
+
+# phase space
+x0 = 0.0
+x1 = 6.0
+nx = 120
+y0 = 0.0
+y1 = 1.0
+ny = 20
+pMeshType = uniform
+nxg = 1
+nyg = 0
+
+# velocity space
+umin = -5.0
+umax = 5.0
+nu = 24
+vmin = -5.0
+vmax = 5.0
+nv = 24
+vMeshType = rectangle
+nug = 0
+nvg = 0
+
+# gas
+knudsen = 0.05
+mach = 0.0
+prandtl = 1.0
+inK = 1.0
+omega = 0.81
+alphaRef = 1.0
+omegaRef = 0.5
+
+# boundary
+uLid = 0.0
+vLid = 0.0
+tLid = 1.0
