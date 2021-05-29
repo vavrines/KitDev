@@ -67,7 +67,7 @@ function regime_data(ks, w, prim, sw, f)
     A = pdf_slope(prim, sw, ks.gas.K)
     tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
     fr = chapman_enskog(ks.vs.u, prim, a, A, tau)
-    L = norm((ctr[i].f .- fr) ./ prim[1])
+    L = norm((f .- fr) ./ prim[1])
 
     x = [w; sw; tau]
     y = ifelse(L <= 0.05, [1.0, 0.0], [0.0, 1.0])
@@ -95,15 +95,14 @@ end
 end
 
 plot_line(ks, ctr)
-plot(ks.vs.u, ctr[i].f)
-plot!(ks.vs.u, fr, line=:dash)
 
 using Flux
+using Flux: onecold
 
 nn = Chain(
-    Dense(7, 14, tanh),
-    Dense(14, 28, tanh),
-    Dense(28, 14, tanh),
+    Dense(7, 14, relu),
+    Dense(14, 28, relu),
+    Dense(28, 14, relu),
     Dense(14, 2),
 )
 
@@ -116,6 +115,26 @@ tau = vhs_collision_time(ctr[i].prim, ks.gas.μᵣ, ks.gas.ω)
 x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
 nn(x)
 
+Mu, Mxi, _, _1 = gauss_moments(ctr[i].prim, ks.gas.K)
+a = pdf_slope(ctr[i].prim, sw, ks.gas.K)
+sw = -ctr[i].prim[1] .* moments_conserve_slope(a, Mu, Mxi, 1)
+A = pdf_slope(ctr[i].prim, sw, ks.gas.K)
+fr = chapman_enskog(ks.vs.u, ctr[i].prim, a, A, tau)
+
+plot(ks.vs.u, ctr[i].f)
+plot!(ks.vs.u, fr, line=:dash)
+
 # accuracy
-nn(X)
+Y1 = nn(X)
 Y
+
+YA1 = [onecold(Y1[:, i]) for i in axes(Y1, 2)]
+YA = [onecold(Y[:, i]) for i in axes(Y, 2)]
+
+accuracy = 0.0
+for i in eachindex(YA)
+    if YA[i] == YA1[i]
+        accuracy += 1.0
+    end
+end
+accuracy /= length(YA)
