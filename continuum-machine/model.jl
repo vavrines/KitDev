@@ -1,5 +1,4 @@
-using Kinetic, ProgressMeter, Plots, LinearAlgebra, JLD2
-using Flux
+using Kinetic, ProgressMeter, Plots, LinearAlgebra, JLD2, Flux
 using Flux: onecold, @epochs
 
 ###
@@ -9,39 +8,31 @@ using Flux: onecold, @epochs
 cd(@__DIR__)
 @load "data.jld2" X1 Y1 X2 Y2
 
-nn = Chain(
-    Dense(7, 14, relu),
-    Dense(14, 28, relu),
-    Dense(28, 14, relu),
-    Dense(14, 2),
-)
+device = gpu
 
-data = Flux.Data.DataLoader((X1, Y1), shuffle = true)
+X1 = Float32.(X1) |> device
+Y1 = Float32.(Y1) |> device
+X2 = Float32.(X2) |> device
+Y2 = Float32.(Y2) |> device
+
+nn = Chain(
+    Dense(7, 28, relu),
+    Dense(28, 56, relu),
+    Dense(56, 28, relu),
+    Dense(28, 2),
+) |> device
+
+data = Flux.Data.DataLoader((X1, Y1), shuffle = true) |> device
 ps = params(nn)
 sqnorm(x) = sum(abs2, x)
 loss(x, y) = sum(abs2, nn(x) - y) / size(x, 2) #+ 1e-6 * sum(sqnorm, ps)
 cb = () -> println("loss: $(loss(X1, Y1))")
 opt = ADAM()
 
-Flux.@epochs 10 Flux.train!(loss, ps, data, opt, cb = Flux.throttle(cb, 1))
+@epochs 5 Flux.train!(loss, ps, data, opt, cb = Flux.throttle(cb, 1))
 
-#sci_train!(nn, (X, Y), ADAM(); device = cpu, epoch = 50)
-
-# test
-i = 50
-sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
-tau = vhs_collision_time(ctr[i].prim, ks.gas.μᵣ, ks.gas.ω)
-x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
-nn(x) #|> onecold
-
-Mu, Mxi, _, _1 = gauss_moments(ctr[i].prim, ks.gas.K)
-a = pdf_slope(ctr[i].prim, sw, ks.gas.K)
-sw = -ctr[i].prim[1] .* moments_conserve_slope(a, Mu, Mxi, 1)
-A = pdf_slope(ctr[i].prim, sw, ks.gas.K)
-fr = chapman_enskog(ks.vs.u, ctr[i].prim, a, A, tau)
-
-plot(ks.vs.u, ctr[i].f)
-plot!(ks.vs.u, fr, line=:dash)
+#sci_train!(nn, (X1, Y1), ADAM(); device = gpu, epoch = 10)
+#sci_train!(nn, (X1, Y1), ADAM(); device = cpu, epoch = 1)
 
 # accuracy
 function accuracy(X, Y)
@@ -64,4 +55,8 @@ end
 accuracy(X1, Y1)
 accuracy(X2, Y2)
 
+nn = nn |> cpu
+
 @save "nn.jld2" nn
+
+nn(Array(X1[:, end]))

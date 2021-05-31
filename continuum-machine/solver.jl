@@ -15,9 +15,9 @@ begin
     D[:nSpecies] = 1
     D[:interpOrder] = 2
     D[:limiter] = "vanleer"
-    D[:boundary] = "period"
-    D[:cfl] = 0.5
-    D[:maxTime] = 5.0
+    D[:boundary] = "fix"
+    D[:cfl] = 0.3
+    D[:maxTime] = 0.1
 
     D[:x0] = 0.0
     D[:x1] = 1.0
@@ -31,7 +31,7 @@ begin
     D[:vMeshType] = "rectangle"
     D[:nug] = 0
 
-    D[:knudsen] = 0.05
+    D[:knudsen] = 0.0001
     D[:mach] = 0.0
     D[:prandtl] = 1.0
     D[:inK] = 0.0
@@ -60,7 +60,7 @@ t = 0.0
 dt = timestep(ks, ctr, t)
 nt = Int(ks.set.maxTime ÷ dt) + 1
 res = zero(ks.ib.wL)
-for iter = 1:1000#nt
+for iter = 1:20#nt
     println("iteration: $iter")
 
     reconstruct!(ks, ctr)
@@ -116,3 +116,10 @@ for iter = 1:1000#nt
 end
 
 plot_line(ks, ctr)
+
+# test
+i = 10
+sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
+tau = vhs_collision_time(ctr[i].prim, ks.gas.μᵣ, ks.gas.ω)
+x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
+nn(x) #|> onecold
