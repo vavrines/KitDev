@@ -1,10 +1,14 @@
-using Kinetic, ProgressMeter, Plots, LinearAlgebra, JLD2
+using Kinetic, Plots, LinearAlgebra, JLD2, Flux
+using Flux: onecold
+using ProgressMeter: @showprogress
 
 ###
 # initialize kinetic solver
 ###
 
 cd(@__DIR__)
+@load "nn.jld2" nn
+
 D = Dict{Symbol,Any}()
 begin
     D[:matter] = "gas"
@@ -31,7 +35,7 @@ begin
     D[:vMeshType] = "rectangle"
     D[:nug] = 0
 
-    D[:knudsen] = 0.0001
+    D[:knudsen] = 1e-4
     D[:mach] = 0.0
     D[:prandtl] = 1.0
     D[:inK] = 0.0
@@ -42,19 +46,17 @@ end
 
 ks = SolverSet(D)
 ctr, face = init_fvm(ks, ks.ps, :dynamic_array; structarray = true)
-for i in eachindex(ctr)
+#=for i in eachindex(ctr)
     prim = [2.0 * rand(), 0.0, 1 / rand()]
 
     ctr[i].prim .= prim
     ctr[i].w .= prim_conserve(prim, ks.gas.γ)
     ctr[i].f .= maxwellian(ks.vs.u, prim)
-end
+end=#
 for i in eachindex(face)
     face[i].fw .= 0.0
     face[i].ff .= 0.0
 end
-
-@load "nn.jld2" nn
 
 t = 0.0
 dt = timestep(ks, ctr, t)
@@ -72,15 +74,15 @@ for iter = 1:20#nt
         sw = (ctr[i].w .- ctr[i-1].w) / ks.ps.dx[i]
         tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
 
-        #regime = nn([w; sw; tau]) |> onecold
-        regime = ifelse(iter < 15, 2, nn([w; sw; tau]) |> onecold)
+        regime = nn([w; sw; tau]) |> onecold
+        #regime = ifelse(iter < 15, 2, nn([w; sw; tau]) |> onecold)
 
         if regime == 1
             flux_gks!(
                 face[i].fw,
                 face[i].ff,
-                ctr[i-1].w,
-                ctr[i].w,
+                ctr[i-1].w .+ ctr[i-1].sw .* ks.ps.dx[i-1] / 2,
+                ctr[i].w .- ctr[i].sw .* ks.ps.dx[i] / 2,
                 ks.vs.u,
                 ks.gas.K,
                 ks.gas.γ,
@@ -118,8 +120,13 @@ end
 plot_line(ks, ctr)
 
 # test
-i = 10
-sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
-tau = vhs_collision_time(ctr[i].prim, ks.gas.μᵣ, ks.gas.ω)
-x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
-nn(x) #|> onecold
+regime = zeros(Int, ks.ps.nx)
+for i = 1:ks.ps.nx
+    sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
+    tau = vhs_collision_time(ctr[i].prim, ks.gas.μᵣ, ks.gas.ω)
+    x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
+
+    regime[i] = nn(x) |> onecold
+end
+
+plot!(ks.ps.x[1:ks.ps.nx], regime)

@@ -15,12 +15,18 @@ Y1 = Float32.(Y1) |> device
 X2 = Float32.(X2) |> device
 Y2 = Float32.(Y2) |> device
 
-nn = Chain(
-    Dense(7, 28, relu),
-    Dense(28, 56, relu),
-    Dense(56, 28, relu),
-    Dense(28, 2),
-) |> device
+isNewStart = true
+if isNewStart
+    nn = Chain(
+        Dense(7, 28, relu),
+        Dense(28, 56, relu),
+        Dense(56, 28, relu),
+        Dense(28, 2),
+    )
+else
+    @load "nn.jld2" nn
+end
+nn = nn |> device
 
 data = Flux.Data.DataLoader((X1, Y1), shuffle = true) |> device
 ps = params(nn)
@@ -29,7 +35,7 @@ loss(x, y) = sum(abs2, nn(x) - y) / size(x, 2) #+ 1e-6 * sum(sqnorm, ps)
 cb = () -> println("loss: $(loss(X1, Y1))")
 opt = ADAM()
 
-@epochs 5 Flux.train!(loss, ps, data, opt, cb = Flux.throttle(cb, 1))
+@epochs 10 Flux.train!(loss, ps, data, opt, cb = Flux.throttle(cb, 1))
 
 #sci_train!(nn, (X1, Y1), ADAM(); device = gpu, epoch = 10)
 #sci_train!(nn, (X1, Y1), ADAM(); device = cpu, epoch = 1)

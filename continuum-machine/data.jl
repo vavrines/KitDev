@@ -31,7 +31,7 @@ function regime_data(ks, w, prim, sw, f)
     L = norm((f .- fr) ./ prim[1])
 
     x = [w; sw; tau]
-    y = ifelse(L <= 0.01, [1.0, 0.0], [0.0, 1.0])
+    y = ifelse(L <= 0.005, [1.0, 0.0], [0.0, 1.0])
     return x, y
 end
 
@@ -75,15 +75,14 @@ begin
     D[:omegaRef] = 0.5
 end
 
-ks = SolverSet(D)
-ctr, face = init_fvm(ks, ks.ps, :dynamic_array; structarray = true)
-
 ###
 # prepare training set
 ###
 
-@showprogress for loop = 1:10
-    ks.gas.Kn = exp(-Float64(loop))
+@showprogress for loop = 1:0.2:10
+    D[:knudsen] = exp(-Float64(loop))
+    ks = SolverSet(D)
+    ctr, face = init_fvm(ks, ks.ps, :dynamic_array; structarray = true)
     init_field!(ks, ctr, face)
 
     t = 0.0
