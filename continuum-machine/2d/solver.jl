@@ -1,5 +1,6 @@
-using Kinetic, Plots, LinearAlgebra, JLD2
+using Kinetic, Plots, LinearAlgebra, JLD2, Flux
 using ProgressMeter: @showprogress
+using Flux: onecold
 
 cd(@__DIR__)
 D = Dict{Symbol,Any}()
@@ -52,48 +53,59 @@ end
 ks = SolverSet(D)
 ctr, a1face, a2face = init_fvm(ks, ks.ps, :dynamic_array; structarray = true)
 
+@load "nn.jld2" nn
+
 t = 0.0
 dt = timestep(ks, ctr, t)
 nt = Int(ks.set.maxTime ÷ dt) + 1
 res = zero(ks.ib.wL)
 
-@showprogress for iter = 1:200#nt
+@showprogress for iter = 1:50#nt
     reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
     
     # horizontal flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx
-            flux_gks!(
-                a1face[i, j].fw,
-                a1face[i, j].ff,
-                ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j]/2,
-                ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j]/2,
-                ks.vSpace.u,
-                ks.vSpace.v,
-                ks.gas.K,
-                ks.gas.γ,
-                ks.gas.μᵣ,
-                ks.gas.ω,
-                dt,
-                ks.ps.dx[i-1, j]/2,
-                ks.ps.dx[i, j]/2,
-                a1face[i, j].len,
-                ctr[i-1, j].sw[:, 1],
-                ctr[i, j].sw[:, 1],
-            )
-#=
-            flux_kfvs!(
-                a1face[i, j].fw,
-                a1face[i, j].ff,
-                ctr[i-1, j].f,
-                ctr[i, j].f,
-                ks.vSpace.u,
-                ks.vSpace.v,
-                ks.vSpace.weights,
-                dt,
-                a1face[i, j].len,
-            )=#
+            w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
+            sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
+            gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+            prim = conserve_prim(w, ks.gas.γ)
+            tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+            regime = nn([w; gra; tau]) |> onecold
+
+            if regime == 1
+                flux_gks!(
+                    a1face[i, j].fw,
+                    a1face[i, j].ff,
+                    ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j]/2,
+                    ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j]/2,
+                    ks.vSpace.u,
+                    ks.vSpace.v,
+                    ks.gas.K,
+                    ks.gas.γ,
+                    ks.gas.μᵣ,
+                    ks.gas.ω,
+                    dt,
+                    ks.ps.dx[i-1, j]/2,
+                    ks.ps.dx[i, j]/2,
+                    a1face[i, j].len,
+                    ctr[i-1, j].sw[:, 1],
+                    ctr[i, j].sw[:, 1],
+                )
+            elseif regime == 2
+                flux_kfvs!(
+                    a1face[i, j].fw,
+                    a1face[i, j].ff,
+                    ctr[i-1, j].f,
+                    ctr[i, j].f,
+                    ks.vSpace.u,
+                    ks.vSpace.v,
+                    ks.vSpace.weights,
+                    dt,
+                    a1face[i, j].len,
+                )
+            end
         end
     end
     
@@ -102,41 +114,50 @@ res = zero(ks.ib.wL)
     vt = -ks.vSpace.u
     @inbounds Threads.@threads for j = 2:ks.pSpace.ny
         for i = 1:ks.pSpace.nx
+            w = (ctr[i, j-1].w .+ ctr[i, j].w) ./ 2
+            sw = (ctr[i, j-1].sw .+ ctr[i, j].sw) ./ 2
+            gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+            prim = conserve_prim(w, ks.gas.γ)
+            tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+            regime = nn([w; gra; tau]) |> onecold
+
             wL = KitBase.local_frame(ctr[i, j-1].w, 0., 1.)
             wR = KitBase.local_frame(ctr[i, j].w, 0., 1.)
             swL = KitBase.local_frame(ctr[i, j-1].sw[:, 2], 0., 1.)
             swR = KitBase.local_frame(ctr[i, j].sw[:, 2], 0., 1.)
 
-            flux_gks!(
-                a2face[i, j].fw,
-                a2face[i, j].ff,
-                wL .+ swL .* ks.ps.dy[i, j-1]/2,
-                wR .- swR .* ks.ps.dy[i, j]/2,
-                vn,
-                vt,
-                ks.gas.K,
-                ks.gas.γ,
-                ks.gas.μᵣ,
-                ks.gas.ω,
-                dt,
-                ks.ps.dy[i, j-1]/2,
-                ks.ps.dy[i, j]/2,
-                a2face[i, j].len,
-                swL,
-                swR,
-            )
-#=
-            KitBase.flux_kfvs!(
-                a2face[i, j].fw,
-                a2face[i, j].ff,
-                ctr[i, j-1].f,
-                ctr[i, j].f,
-                vn,
-                vt,
-                ks.vSpace.weights,
-                dt,
-                a2face[i, j].len,
-            )=#
+            if regime == 1
+                flux_gks!(
+                    a2face[i, j].fw,
+                    a2face[i, j].ff,
+                    wL .+ swL .* ks.ps.dy[i, j-1]/2,
+                    wR .- swR .* ks.ps.dy[i, j]/2,
+                    vn,
+                    vt,
+                    ks.gas.K,
+                    ks.gas.γ,
+                    ks.gas.μᵣ,
+                    ks.gas.ω,
+                    dt,
+                    ks.ps.dy[i, j-1]/2,
+                    ks.ps.dy[i, j]/2,
+                    a2face[i, j].len,
+                    swL,
+                    swR,
+                )
+            elseif regime == 2
+                KitBase.flux_kfvs!(
+                    a2face[i, j].fw,
+                    a2face[i, j].ff,
+                    ctr[i, j-1].f,
+                    ctr[i, j].f,
+                    vn,
+                    vt,
+                    ks.vSpace.weights,
+                    dt,
+                    a2face[i, j].len,
+                )
+            end
 
             a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0., 1.)
         end
@@ -211,3 +232,19 @@ res = zero(ks.ib.wL)
 end
 
 plot_contour(ks, ctr)
+
+# detector
+for j = 1:ks.pSpace.ny
+    for i = 2:ks.pSpace.nx
+        w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
+        sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
+        gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+        prim = conserve_prim(w, ks.gas.γ)
+        tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+        regime = nn([w; gra; tau]) |> onecold
+
+        if regime == 1
+            @show "here"
+        end
+    end
+end
