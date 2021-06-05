@@ -13,7 +13,7 @@ begin
     D[:nSpecies] = 1
     D[:interpOrder] = 2
     D[:limiter] = "vanleer"
-    D[:boundary] = "fix"
+    D[:boundary] = "maxwell"
     D[:cfl] = 0.5
     D[:maxTime] = 1.0
 
@@ -37,7 +37,7 @@ begin
     D[:nug] = 0
     D[:nvg] = 0
 
-    D[:knudsen] = 0.005
+    D[:knudsen] = 0.5
     D[:mach] = 0.0
     D[:prandtl] = 1.0
     D[:inK] = 0.0
@@ -54,14 +54,15 @@ ks = SolverSet(D)
 ctr, a1face, a2face = init_fvm(ks, ks.ps, :dynamic_array; structarray = true)
 
 s2 = 0.03^2
+s1 = 0.1#4π * s2
 flr = 0.0001
-init_density(x, y) = max(flr, 1.0 / (4.0 * pi * s2) * exp(-(x^2 + y^2) / 4.0 / s2))
+init_density(x, y) = max(flr, 1.0 / s1 * exp(-(x^2 + y^2) / 4.0 / s2))
 
 function init_field!(ks, ctr, a1face, a2face)
     for i = 1:ks.ps.nx, j = 1:ks.ps.ny
         rho0 = init_density(ks.ps.x[i, j], ks.ps.y[i, j])
 
-        ctr[i, j].prim .= [rho0, 0.0, 0.0, 0.0]
+        ctr[i, j].prim .= [rho0, 0.0, 0.0, 1.0]
         ctr[i, j].w .= prim_conserve(ctr[i, j].prim, ks.gas.γ)
         ctr[i, j].f .= maxwellian(ks.vs.u, ks.vs.v, ctr[i, j].prim)
     end
@@ -79,28 +80,12 @@ init_field!(ks, ctr, a1face, a2face)
 
 plot_contour(ks, ctr)
 
-function visualize(ks, ctr)
-    sol = zeros(ks.ps.nx, ks.ps.ny, 4)
-    for i = 1:ks.ps.nx, j = 1:ks.ps.ny
-        sol[i, j, :] .= ctr.prim[i, j]
-        sol[i, j, 4] = 1 / sol[i, j, 4]
-    end
-    p = [contourf(ks.ps.x[:, 1], ks.ps.y[1, :], sol[:, :, 1]'),
-    contourf(ks.ps.x[:, 1], ks.ps.y[1, :], sol[:, :, 2]'),
-    contourf(ks.ps.x[:, 1], ks.ps.y[1, :], sol[:, :, 3]'),
-    contourf(ks.ps.x[:, 1], ks.ps.y[1, :], sol[:, :, 4]')]
-end
-
-p = visualize(ks, ctr)
-
-p[3]
-
 t = 0.0
 dt = timestep(ks, ctr, t)
 nt = Int(ks.set.maxTime ÷ dt) + 1
 res = zero(ks.ib.wL)
 
-@showprogress for iter = 1:10#nt
+@showprogress for iter = 1:20#nt
     reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
     
@@ -203,9 +188,92 @@ res = zero(ks.ib.wL)
         end
     end
     
+    # boundary flux
+    @inbounds Threads.@threads for j = 1:ks.pSpace.ny
+        KitBase.flux_boundary_maxwell!(
+            a1face[1, j].fw,
+            a1face[1, j].ff,
+            ks.ib.bcL,
+            ctr[1, j].f,
+            ks.vSpace.u,
+            ks.vSpace.v,
+            ks.vSpace.weights,
+            dt,
+            ctr[1, j].dy,
+            1.,
+        )
+
+        KitBase.flux_boundary_maxwell!(
+            a1face[ks.pSpace.nx+1, j].fw,
+            a1face[ks.pSpace.nx+1, j].ff,
+            ks.ib.bcL,
+            ctr[ks.pSpace.nx, j].f,
+            ks.vSpace.u,
+            ks.vSpace.v,
+            ks.vSpace.weights,
+            dt,
+            ctr[ks.pSpace.nx, j].dy,
+            -1.,
+        )
+    end
+    
+    @inbounds Threads.@threads for i = 1:ks.pSpace.nx
+        KitBase.flux_boundary_maxwell!(
+            a2face[i, 1].fw,
+            a2face[i, 1].ff,
+            ks.ib.bcL,
+            ctr[i, 1].f,
+            vn,
+            vt,
+            ks.vSpace.weights,
+            dt,
+            ctr[i, 1].dx,
+            1,
+        )
+        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0., 1.)
+        
+        KitBase.flux_boundary_maxwell!(
+            a2face[i, ks.pSpace.ny+1].fw,
+            a2face[i, ks.pSpace.ny+1].ff,
+            ks.ib.bcL,
+            ctr[i, ks.pSpace.ny].f,
+            vn,
+            vt,
+            ks.vSpace.weights,
+            dt,
+            ctr[i, ks.pSpace.ny].dy,
+            -1,
+        )
+        a2face[i, ks.pSpace.ny+1].fw .= KitBase.global_frame(
+            a2face[i, ks.pSpace.ny+1].fw,
+            0.,
+            1.,
+        )
+    end
+
     update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
 
     t += dt
 end
 
 plot_contour(ks, ctr)
+
+sol = zeros(ks.ps.nx, ks.ps.ny, 4)
+for i = 1:ks.ps.nx, j = 1:ks.ps.ny
+    sol[i, j, :] .= ctr.prim[i, j]
+    sol[i, j, 4] = 1 / sol[i, j, 4]
+end
+
+plot(ks.ps.x[:, 1], sol[:, end÷2, 1])
+
+cd(@__DIR__)
+@load "../2d/nn.jld2" nn
+
+# test
+i = 39; j = 39
+w = (ctr[i, j-1].w .+ ctr[i, j].w) ./ 2
+sw = (ctr[i, j-1].sw .+ ctr[i, j].sw) ./ 2
+gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+prim = conserve_prim(w, ks.gas.γ)
+tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+regime = nn([w; gra; tau]) |> onecold
