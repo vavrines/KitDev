@@ -18,7 +18,7 @@ end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 
 begin
-    uqMethod = "collocation"
+    uqMethod = "galerkin"
     nr = 5
     nRec = 10
     opType = "uniform"
