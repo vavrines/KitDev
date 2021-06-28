@@ -32,7 +32,7 @@ begin
     ps = PSpace1D(x0, x1, nx, nxg)
 
     # velocity space
-    nu = 28
+    nu = 100
     points, weights = gausslegendre(nu)
     vs = VSpace1D(points[1], points[end], nu, points, ones(nu) .* (points[end] - points[1]) / (nu - 1), weights)
 
@@ -119,5 +119,5 @@ for iter = 1:nt
     global t += dt
 end
 
-plot(ps.x[1:nx], phi[1, :])
-plot!(ps.x[1:nx], ρ)
+plot(ps.x[1:nx], phi[1, :], label="Mn")
+plot!(ps.x[1:nx], ρ, label="Sn")

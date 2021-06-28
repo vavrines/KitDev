@@ -32,7 +32,7 @@ begin
     ps = PSpace1D(x0, x1, nx, nxg)
 
     # velocity space
-    nu = 28
+    nu = 100
     points, weights = gausslegendre(nu)
     vs = VSpace1D(points[1], points[end], nu, points, ones(nu) .* (points[end] - points[1]) / (nu - 1), weights)
 
