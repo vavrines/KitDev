@@ -93,7 +93,7 @@ function dudt!(du, u, p, t)
     end
 end
 
-tspan = (0.0, 0.5)
+tspan = (0.0, 0.4)
 p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, ps.dx, γ, uq)
 prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
@@ -112,3 +112,6 @@ end
 plot(ps.x, sol[:, 2, 1], label="mean", xlabel="x", ylabel="u")
 plot!(ps.x, sol[:, 2, 1] .+ sol[:, 2, 2], label="mean+std")
 plot!(ps.x, sol[:, 2, 1] .- sol[:, 2, 2], label="mean-std")
+
+cd(@__DIR__)
+savefig("burgers.pdf")
