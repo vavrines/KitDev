@@ -2,26 +2,9 @@ using OrdinaryDiffEq, Plots, JLD2, ProgressMeter, LinearAlgebra, PyCall
 using KitBase, FluxReconstruction
 
 begin
-    cd(@__DIR__)
-    @load "ma3_ref.jld2" x_ref u_ref
-    prim_ref = zeros(length(x_ref), 3)
-    for i = 1:size(u_ref, 1)
-        idx0 = (i - 1) * size(u_ref, 3)
-        idx = idx0+1:idx0+size(u_ref, 3)
-
-        for j = 1:size(u_ref, 3)
-            idx = idx0 + j
-            _w = moments_conserve(u_ref[i, :, j], vs.u, vs.weights)
-            prim_ref[idx, :] .= conserve_prim(_w, 3.0)
-        end
-    end
-    plot(x_ref, prim_ref[:, 1], legend=:none)
-end
-
-begin
     x0 = -25
     x1 = 25
-    nx = 10
+    nx = 16
     dx = (x1 - x0) / nx
     deg = 2 # polynomial degree
     nsp = deg + 1
@@ -43,6 +26,27 @@ begin
     δ = heaviside.(vs.u)
     gas = Gas(knudsen, mach, 1.0, 0.0, 3.0, 0.81, 1.0, 0.5)
     ib = ib_rh(gas.Ma, gas.γ, vs.u)
+end
+
+begin
+    cd(@__DIR__)
+
+    mastr = mach |> Int |> string
+    filename = "ma" * mastr * "_ref.jld2"
+    @load filename x_ref u_ref
+
+    prim_ref = zeros(length(x_ref), 3)
+    for i = 1:size(u_ref, 1)
+        idx0 = (i - 1) * size(u_ref, 3)
+        idx = idx0+1:idx0+size(u_ref, 3)
+
+        for j = 1:size(u_ref, 3)
+            idx = idx0 + j
+            _w = moments_conserve(u_ref[i, :, j], vs.u, vs.weights)
+            prim_ref[idx, :] .= conserve_prim(_w, 3.0)
+        end
+    end
+    plot(x_ref, prim_ref[:, 1], legend=:none)
 end
 
 u = zeros(nx, nu, nsp)
@@ -158,7 +162,7 @@ itg = init(
     dt = dt,
 )
 
-@showprogress for iter = 1:1000#nt
+@showprogress for iter = 1:nt
     step!(itg)
 end
 
