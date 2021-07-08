@@ -4,19 +4,19 @@ using KitBase, FluxReconstruction
 begin
     x0 = -25
     x1 = 25
-    nx = 16
+    nx = 32
     dx = (x1 - x0) / nx
-    deg = 2 # polynomial degree
+    deg = 1 # polynomial degree
     nsp = deg + 1
     u0 = -10
     u1 = 10
     nu = 64
     cfl = 0.1
     t = 0.0
-    tspan = (0.0, 30.0)
+    tspan = (0.0, 100.0)
     dt = cfl * dx / u1
     nt = floor(tspan[2] / dt) |> Int
-    mach = 3.0
+    mach = 2.0
     knudsen = 1.0
 end
 

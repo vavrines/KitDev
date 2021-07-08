@@ -1,5 +1,5 @@
-using OrdinaryDiffEq, KitBase, KitBase.Plots, KitBase.ProgressMeter
-import FluxRC
+using OrdinaryDiffEq, KitBase, Plots, FluxReconstruction, JLD2
+using ProgressMeter: @showprogress
 
 function fboundary!(
     fh::T1,
@@ -40,7 +40,7 @@ end
 begin
     x0 = -1
     x1 = 1
-    nx = 30
+    nx = 2
     y0 = 0
     y1 = 1
     ny = 1
@@ -66,17 +66,17 @@ begin
     nt = tmax ÷ dt |> Int
 end
 
-pspace = FluxRC.FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
+pspace = FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
 vspace = VSpace2D(u0, u1, nu, v0, v1, nv)
 δu = heaviside.(vspace.u)
 δv = heaviside.(vspace.v)
 
 begin
-    xGauss = FluxRC.legendre_point(deg)
-    ll = FluxRC.lagrange_point(xGauss, -1.0)
-    lr = FluxRC.lagrange_point(xGauss, 1.0)
-    lpdm = FluxRC.∂lagrange(xGauss)
-    dgl, dgr = FluxRC.∂radau(deg, xGauss)
+    xGauss = legendre_point(deg)
+    ll = lagrange_point(xGauss, -1.0)
+    lr = lagrange_point(xGauss, 1.0)
+    lpdm = ∂lagrange(xGauss)
+    dgl, dgr = ∂radau(deg, xGauss)
 end
 
 w0 = zeros(nx, ny, 4, nsp, nsp)
@@ -251,8 +251,10 @@ itg = init(
     #autodiff = false,
 )
 
-@showprogress for i = 1:200
+@showprogress for i = 1:1000
     step!(itg)
+
+
 end
 
 begin
@@ -262,16 +264,13 @@ begin
         idx0 = (i - 1) * nsp
         for j = 1:nsp
             idx = idx0 + j
-            x[idx] = xsp[i, j]
+            x[idx] = pspace.xpg[i, 1, j, 1, 1]
             _w = moments_conserve(itg.u[i, 1, :, :, j, 1, 1], itg.u[i, 1, :, :, j, 1, 2], vspace.u, vspace.v, vspace.weights)
             prim[idx, :] .= conserve_prim(_w, 2.0)
         end
     end
-    Plots.plot(x, prim[:, 3])
+    plot(x, prim[:, 3])
 end
-
-
-
 
 
 

@@ -16,7 +16,7 @@ begin
     tspan = (0.0, 30.0)
     dt = cfl * dx / u1
     nt = floor(tspan[2] / dt) |> Int
-    mach = 3.0
+    mach = 2.0
     knudsen = 1.0
 end
 
@@ -29,7 +29,8 @@ begin
     cd(@__DIR__)
 end
 
-isNewStart = true#false
+#isNewStart = true
+isNewStart = false
 if isNewStart
     u = zeros(nx, nu, nsp)
     for i = 1:nx, ppp1 = 1:nsp
@@ -150,7 +151,7 @@ itg = init(
     dt = dt,
 )
 
-@showprogress for iter = 1:5000#nt
+@showprogress for iter = 1:1000#nt
     step!(itg)
 end
 
