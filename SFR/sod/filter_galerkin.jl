@@ -1,49 +1,92 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
-function Filter(u::Array{Float64,1},lambda::Float64,filterType::String)
-    if filterType == "L2"
-        for i = 1:length(u)
-            u[i] = u[i]/(1.0+lambda*i^2*(i-1)^2);
-        end
-    elseif filterType == "Lasso"
-        N = obj.settings.N;
-        lambdaFilter = abs(u[N])/(N*(N-1)*PhiL1[N]);
-        for i = 2:length(u)
-            scL1 = 1.0-lambdaFilter*i*(i-1)*PhiL1[i]/abs(u[i]);
-            if scL1 < 0 || abs(u[i]) < 1.0e-7
-                scL1 = 0;
-            end
-            u[i] = scL1*u[i];
-        end
-    end
-    return u;
+cd(@__DIR__)
+include("rhs.jl")
+
+function FR.modal_filter!(u::AbstractMatrix{T}, args...; filter::Symbol) where {T<:AbstractFloat}
+    filtstr = "filter_" * string(filter) * "!"
+    filtfunc = Symbol(filtstr) |> eval
+    filtfunc(u, args...)
+
+    return nothing
 end
 
-function Filter(u::Array{Float64,2},lambdaX::Float64,lambdaXi::Float64,filterType::String,PhiL1=0.0)
-    if filterType == "L2"
-        for i = 1:size(u,1)
-            for j = 1:size(u,2)
-                u[i,j] = u[i,j]/(1.0+lambdaX*i^2*(i-1)^2+lambdaXi*j^2*(j-1)^2);
-            end
-        end
-    elseif filterType == "Lasso"
-        #PhiL1 = ones(size(u))
-        N1 = size(u,1);
-        N2 = size(u,2)
-        lambda1 = abs(u[N1,1])/(N1*(N1-1)*PhiL1[N1,1]);
-        lambda2 = abs(u[1,N2])/(N2*(N2-1)*PhiL1[1,N2]);
-        for i = 1:size(u,1)
-            for j = 1:size(u,2)
-                scL1 = 1.0-lambda1*i*(i-1)*PhiL1[i,j]/abs(u[i,j])-lambda2*j*(j-1)*PhiL1[i,j]/abs(u[i,j]);
-                if scL1 < 0 || abs(u[i,j]) < 1.0e-7
-                    scL1 = 0;
-                end
-                u[i,j] = scL1*u[i,j];
-            end
+function FR.filter_l2!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+    p0 = axes(u, 1) |> first
+    p1 = axes(u, 1) |> last
+    q0 = axes(u, 2) |> first
+    q1 = axes(u, 2) |> last
+    @assert p0 >= 0
+    @assert q0 >= 0
+
+    λx, λξ = args[1:2]
+    for j in axes(u, 2), i in axes(u, 1)
+        u[i, j] /= (1.0 + λx * (i - p0 + 1)^2 * (i - p0)^2 + λξ * (j - q0 + 1)^2 * (j - q0)^2)
+    end
+
+    return nothing
+end
+
+function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+    nx, nz = size(u)
+    λx, λξ = args[1:2]
+
+    if length(args) >= 3
+        Ncx = args[3]
+    else
+        Ncx = 0
+    end
+    if length(args) >= 4
+        Ncξ = args[4]
+    else
+        Ncξ = 0
+    end
+
+    σ1 = FR.filter_exp1d(nx-1, λx, Ncx)
+    σ2 = FR.filter_exp1d(nz-1, λξ, Ncξ)
+
+    for j in axes(u, 2), i in axes(u, 1)
+        u[i, j] *= σ1[i] * σ2[j]
+    end
+
+    return nothing
+end
+
+function filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+    nx, nz = size(u)
+    λx, λξ = args[1:2]
+
+    if length(args) >= 3
+        Ncx = args[3]
+    else
+        Ncx = 0
+    end
+    if length(args) >= 4
+        Ncξ = args[4]
+    else
+        Ncξ = 0
+    end
+
+    σ1 = FR.filter_exp1d(nx-1, λx, Ncx)
+    σ2 = FR.filter_exp1d(nz-1, λξ, Ncξ)
+
+    for i in eachindex(σ1)
+        if i/length(σ1) <= 2/3
+            σ1[i] = 1.0
         end
     end
-    return u;
+    for i in eachindex(σ2)
+        if i/length(σ2) <= 2/3
+            σ2[i] = 1.0
+        end
+    end
+
+    for j in axes(u, 2), i in axes(u, 1)
+        u[i, j] *= σ1[i] * σ2[j]
+    end
+
+    return nothing
 end
 
 begin
@@ -75,7 +118,7 @@ uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 
 u = zeros(ncell, nsp, 3, uq.nm+1)
 # stochastic density
-for i = 1:ncell, j = 1:nsp
+#=for i = 1:ncell, j = 1:nsp
     prim = zeros(3, uq.nm+1)
     if ps.x[i] <= 0.5
         prim[1, :] .= uq.pce
@@ -86,7 +129,7 @@ for i = 1:ncell, j = 1:nsp
     end
 
     u[i, j, :, :] .= uq_prim_conserve(prim, γ, uq)
-end
+end=#
 
 # stochastic location
 for i = 1:ncell, j = 1:nsp
@@ -106,72 +149,6 @@ for i = 1:ncell, j = 1:nsp
     end
 
     u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
-end
-
-function dudt!(du, u, p, t)
-    du .= 0.0
-    J, ll, lr, lpdm, dgl, dgr, γ, uq = p
-
-    nm = uq.nm
-    nq = uq.nq
-
-    ncell = size(u, 1)
-    nsp = size(u, 2)
-
-    u_ran = zeros(ncell, nsp, 3, nq)
-    for i = 1:ncell, j = 1:nsp, k = 1:3
-        u_ran[i, j, k, :] .= chaos_ran(u[i, j, k, :], uq)
-    end
-
-    f = zeros(ncell, nsp, 3, nm+1)
-    for i = 1:ncell, j = 1:nsp
-        _f = zeros(3, nq)
-        for k = 1:nq
-            _f[:, k] .= euler_flux(u_ran[i, j, :, k], γ)[1] ./ J[i]
-        end
-
-        for k = 1:3
-            f[i, j, k, :] .= ran_chaos(_f[k, :], uq)
-        end
-    end
-
-    f_face = zeros(ncell, 3, nm+1, 2)
-    for i = 1:ncell, j = 1:3, k = 1:nm+1
-        f_face[i, j, k, 1] = dot(f[i, :, j, k], lr)
-        f_face[i, j, k, 2] = dot(f[i, :, j, k], ll)
-    end
-
-    u_face = zeros(ncell, 3, nq, 2)
-    for i = 1:ncell, j = 1:3, k = 1:nq
-        u_face[i, j, k, 1] = dot(u_ran[i, :, j, k], lr)
-        u_face[i, j, k, 2] = dot(u_ran[i, :, j, k], ll)
-    end
-
-    fq_interaction = zeros(ncell + 1, 3, nq)
-    for i = 2:ncell, j = 1:nq
-        fw = @view fq_interaction[i, :, j]
-        flux_hll!(fw, u_face[i-1, :, j, 1], u_face[i, :, j, 2], γ, 1.0)
-    end
-
-    f_interaction = zeros(ncell + 1, 3, nm+1)
-    for i = 2:ncell, j = 1:3
-        f_interaction[i, j, :] .= ran_chaos(fq_interaction[i, j, :], uq)
-    end
-
-    rhs1 = zero(u)
-    for i = 1:ncell, ppp1 = 1:nsp, k = 1:3, l = 1:nm+1
-        rhs1[i, ppp1, k, l] = dot(f[i, :, k, l], lpdm[ppp1, :])
-    end
-
-    idx = 2:ncell-1 # ending points are Dirichlet
-    for i in idx, ppp1 = 1:nsp, k = 1:3, l = 1:nm+1
-        du[i, ppp1, k, l] =
-            -(
-                rhs1[i, ppp1, k, l] +
-                (f_interaction[i, k, l] / J[i] - f_face[i, k, l, 2]) * dgl[ppp1] +
-                (f_interaction[i+1, k, l] / J[i] - f_face[i, k, l, 1]) * dgr[ppp1]
-            )
-    end
 end
 
 tspan = (0.0, 0.15)
@@ -220,8 +197,9 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     # filter
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
-            uModal = VInv*itg.u[j,:,s,:]                
-            itg.u[j,:,s,:] .= V*Filter(uModal,lambdaX,lambdaXi,filterType,PhiL1)
+            uModal = VInv * itg.u[j, :, s, :]
+            modal_filter!(uModal, 10, 10; filter = :houli)
+            itg.u[j, :, s, :] .= V * uModal
         end
     end
 end
@@ -241,6 +219,3 @@ end
 pic1 = plot(ps.x, sol[:, 2, 1, 1], label="mean", xlabel="x", ylabel="ρ")
 pic2 = plot(ps.x, sol[:, 2, 1, 2], label="std")
 plot(pic1, pic2)
-
-cd(@__DIR__)
-savefig("rho.png") 

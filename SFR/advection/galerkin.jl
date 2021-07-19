@@ -2,7 +2,7 @@ using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plot
 using ProgressMeter: @showprogress
 
 begin
-    x0 = 0
+    x0 = -1
     x1 = 1
     ncell = 100
     nface = ncell + 1
@@ -22,16 +22,17 @@ begin
     nr = 5
     nRec = 10
     opType = "uniform"
-    parameter1 = 0.95
-    parameter2 = 1.05
+    parameter1 = 0.9
+    parameter2 = 1.1
 end
 
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 
 u = zeros(ncell, nsp, uq.nm+1)
 for i = 1:ncell, j = 1:nsp
-    u[i, j, 1] = 1.0
-    u[i, j, :] .+= uq.pce * 0.1 * sin(2π * ps.xpg[i, j])
+    #u[i, j, 1] = 1.0
+    #u[i, j, :] .+= uq.pce * 0.1 * sin(2π * ps.xpg[i, j])
+    u[i, j, :] .= uq.pce * sin(π * ps.xpg[i, j])
 end
 
 a = zeros(uq.nm+1)
@@ -98,7 +99,7 @@ function dudt!(du, u, p, t)
     end
 end
 
-tspan = (0.0, 0.5)
+tspan = (0.0, 2.0)
 p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, ps.dx, γ, uq, a)
 prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
@@ -117,3 +118,4 @@ end
 plot(ps.x, sol[:, 2, 1], label="mean", xlabel="x", ylabel="u")
 plot!(ps.x, sol[:, 2, 1] .+ sol[:, 2, 2], label="mean+std")
 plot!(ps.x, sol[:, 2, 1] .- sol[:, 2, 2], label="mean-std")
+savefig("wave.pdf")
