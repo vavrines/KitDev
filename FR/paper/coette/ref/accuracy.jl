@@ -1,4 +1,4 @@
-using OrdinaryDiffEq, KitBase, Plots, FluxReconstruction, JLD2
+using OrdinaryDiffEq, KitBase, Plots, FluxReconstruction, JLD2, PyCall
 using ProgressMeter: @showprogress
 
 function fboundary!(
@@ -40,7 +40,7 @@ end
 begin
     x0 = -1
     x1 = 1
-    nx = 128
+    nx = 64#128
     y0 = 0
     y1 = 1
     ny = 1
@@ -64,6 +64,64 @@ begin
     tmax = 20.0
     tspan = (0.0, tmax)
     nt = tmax ÷ dt |> Int
+
+    pspace = FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
+    vspace = VSpace2D(u0, u1, nu, v0, v1, nv)
+    δu = heaviside.(vspace.u)
+    δv = heaviside.(vspace.v)
+
+    xGauss = legendre_point(deg)
+    ll = lagrange_point(xGauss, -1.0)
+    lr = lagrange_point(xGauss, 1.0)
+    lpdm = ∂lagrange(xGauss)
+    dgl, dgr = ∂radau(deg, xGauss)
+
+    cd(@__DIR__)
+    @load "kn3.jld2" u
+
+    x_ref = zeros(nx * nsp)
+    prim_ref = zeros(nx * nsp, 4)
+    for i = 1:nx
+        idx0 = (i - 1) * nsp
+        for j = 1:nsp
+            idx = idx0 + j
+            x_ref[idx] = pspace.xpg[i, 1, j, 1, 1]
+            _w = moments_conserve(u[i, 1, :, :, j, 1, 1], u[i, 1, :, :, j, 1, 2], vspace.u, vspace.v, vspace.weights)
+            prim_ref[idx, :] .= conserve_prim(_w, 2.0)
+        end
+    end
+    Plots.plot(x_ref, prim_ref[:, 3])
+end
+
+# solver
+
+begin
+    x0 = -1
+    x1 = 1
+    nx = 16
+    y0 = 0
+    y1 = 1
+    ny = 1
+    dx = (x1 - x0) / nx
+    dy = (y1 - y0) / ny
+    deg = 2
+    nsp = deg + 1
+    u0 = -6
+    u1 = 6
+    nu = 72
+    v0 = -6
+    v1 = 6
+    nv = 72
+    inK = 1
+    γ = 5 / 3
+    knudsen = 0.2e1 / √π
+    muref = ref_vhs_vis(knudsen, 1.0, 0.5)
+    cfl = 0.1
+    dt = cfl * dx / (u1 + 2.0)
+    t = 0.0
+    tmax = 20.0
+    tspan = (0.0, tmax)
+    nt = tmax ÷ dt |> Int
 end
 
 pspace = FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
@@ -78,52 +136,6 @@ begin
     lpdm = ∂lagrange(xGauss)
     dgl, dgr = ∂radau(deg, xGauss)
 end
-
-cd(@__DIR__)
-@load "kn1.jld2" u
-
-begin
-    x_ref = zeros(nx * nsp)
-    prim_ref = zeros(nx * nsp, 4)
-    for i = 1:nx
-        idx0 = (i - 1) * nsp
-        for j = 1:nsp
-            idx = idx0 + j
-            x_ref[idx] = pspace.xpg[i, 1, j, 1, 1]
-            _w = moments_conserve(u[i, 1, :, :, j, 1, 1], u[i, 1, :, :, j, 1, 2], vspace.u, vspace.v, vspace.weights)
-            prim_ref[idx, :] .= conserve_prim(_w, 2.0)
-        end
-    end
-    plot(x_ref, prim_ref[:, 3])
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 w0 = zeros(nx, ny, 4, nsp, nsp)
 h0 = zeros(nx, ny, nu, nv, nsp, nsp)
@@ -301,13 +313,8 @@ itg = init(
 @load "kn1.jld2" u
 itg.u .= u=#
 
-@showprogress for i = 1:nt
+@showprogress for i = 1:nt÷2
     step!(itg)
-
-    if i%500 == 0
-        u = itg.u
-        @save "kn1.jld2" u
-    end
 end
 
 begin
@@ -322,5 +329,15 @@ begin
             prim[idx, :] .= conserve_prim(_w, 2.0)
         end
     end
-    plot(x, prim[:, 3])
+    plot(x, prim[:, 1])
+    plot!(x_ref, prim_ref[:, 1], line=:dash)
+end
+
+itp = pyimport("scipy.interpolate")
+begin
+    entry = 1
+    f_ref = itp.interp1d(x_ref, prim_ref[:, entry], kind="cubic")
+    L1_error(prim[:, entry], f_ref(x), dx) |> println
+    L2_error(prim[:, entry], f_ref(x), dx) |> println
+    L∞_error(prim[:, entry], f_ref(x), dx) |> println
 end

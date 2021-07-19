@@ -4,19 +4,19 @@ using KitBase, FluxReconstruction
 begin
     x0 = -25
     x1 = 25
-    nx = 16
+    nx = 32
     dx = (x1 - x0) / nx
-    deg = 1 # polynomial degree
+    deg = 2 # polynomial degree
     nsp = deg + 1
     u0 = -10
     u1 = 10
-    nu = 64
+    nu = 200
     cfl = 0.1
     t = 0.0
-    tspan = (0.0, 200.0)
+    tspan = (0.0, 2.7)
     dt = cfl * dx / u1
     nt = floor(tspan[2] / dt) |> Int
-    mach = 2.0
+    mach = 3.0
     knudsen = 1.0
 end
 
@@ -33,8 +33,8 @@ begin
 
     mastr = mach |> Int |> string
     filename = "ma" * mastr * "_ref.jld2"
+#=
     @load filename x_ref u_ref
-
     prim_ref = zeros(length(x_ref), 3)
     for i = 1:size(u_ref, 1)
         idx0 = (i - 1) * size(u_ref, 3)
@@ -45,7 +45,10 @@ begin
             _w = moments_conserve(u_ref[i, :, j], vs.u, vs.weights)
             prim_ref[idx, :] .= conserve_prim(_w, 3.0)
         end
-    end
+    end=#
+
+    @load filename x_ref prim_ref
+
     plot(x_ref, prim_ref[:, 1], legend=:none)
 end
 
@@ -184,20 +187,15 @@ begin
         end
     end
     plot(x, prim[:, 1])
-    plot!(x, 1 ./ prim[:, 3])
+    plot!(x_ref, prim_ref[:, 1], line=:dash)
 end
 
-itp = pyimport("scipy.interpolate")
 begin
-    f_ref = itp.interp1d(x_ref, prim_ref[:, 1], kind="cubic")
-    L1_error(prim[:, 1], f_ref(x), dx) |> println
-    L2_error(prim[:, 1], f_ref(x), dx) |> println
-    L∞_error(prim[:, 1], f_ref(x), dx) |> println
+    itp = pyimport("scipy.interpolate")
+
+    entry = 3
+    f_ref = itp.interp1d(x_ref, prim_ref[:, entry], kind="cubic")
+    L1_error(prim[:, entry], f_ref(x), dx) |> println
+    L2_error(prim[:, entry], f_ref(x), dx) |> println
+    L∞_error(prim[:, entry], f_ref(x), dx) |> println
 end
-#=begin
-    f_ref = itp.interp1d(x_ref, prim_ref[:, 3], kind="cubic")
-    L1_error(prim[:, 3], f_ref(x), dx) |> println
-    L2_error(prim[:, 3], f_ref(x), dx) |> println
-    L∞_error(prim[:, 3], f_ref(x), dx) |> println
-end
-=#

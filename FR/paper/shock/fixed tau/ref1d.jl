@@ -4,13 +4,13 @@ using KitBase, FluxReconstruction
 begin
     x0 = -25
     x1 = 25
-    nx = 800
+    nx = 256
     dx = (x1 - x0) / nx
-    deg = 1 # polynomial degree
+    deg = 2 # polynomial degree
     nsp = deg + 1
     u0 = -10
     u1 = 10
-    nu = 64
+    nu = 200
     cfl = 0.1
     t = 0.0
     tspan = (0.0, 200.0)

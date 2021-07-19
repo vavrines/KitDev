@@ -40,7 +40,7 @@ end
 begin
     x0 = -1
     x1 = 1
-    nx = 128
+    nx = 64#128
     y0 = 0
     y1 = 1
     ny = 1
@@ -235,6 +235,9 @@ fhx_interaction, fbx_interaction,
 rhs_h1, rhs_b1,
 inK, γ, muref, τ0, ll, lr, lpdm, dgl, dgr)
 
+@load "kn3_new.jld2" u
+u0 = u
+
 prob = ODEProblem(mol!, u0, tspan, p)
 itg = init(
     prob,
@@ -259,3 +262,21 @@ itg = init(
         @save "kn3.jld2" u
     end
 end
+
+begin
+    x = zeros(nx * nsp)
+    prim = zeros(nx * nsp, 4)
+    for i = 1:nx
+        idx0 = (i - 1) * nsp
+        for j = 1:nsp
+            idx = idx0 + j
+            x[idx] = pspace.xpg[i, 1, j, 1, 1]
+            _w = moments_conserve(itg.u[i, 1, :, :, j, 1, 1], itg.u[i, 1, :, :, j, 1, 2], vspace.u, vspace.v, vspace.weights)
+            prim[idx, :] .= conserve_prim(_w, 2.0)
+        end
+    end
+    plot(x, prim[:, 3])
+end
+
+#u = itg.u
+#@save "kn3_new.jld2" u

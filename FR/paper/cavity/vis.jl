@@ -1,5 +1,5 @@
 using BSON, DataFrames, KitBase, KitBase.CSV, KitBase.PyCall, KitBase.Plots, PyPlot
-import FluxRC
+import FluxReconstruction
 
 cd(@__DIR__)
 itp = pyimport("scipy.interpolate")
@@ -25,7 +25,7 @@ begin
     γ = 5 / 3
 end
 
-ps = FluxRC.FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
+ps = FluxReconstruction.FRPSpace2D(x0, x1, nx, y0, y1, ny, deg)
 vs = VSpace2D(u0, u1, nu, v0, v1, nv)
 
 begin
@@ -38,8 +38,8 @@ begin
         for k = 1:nsp, l = 1:nsp
             idx = idx0 + k
             idy = idy0 + l
-            coord[idx, idy, 1] = ps.xp[i, j, k, l]
-            coord[idx, idy, 2] = ps.yp[i, j, k, l]
+            coord[idx, idy, 1] = ps.xpg[i, j, k, l, 1]
+            coord[idx, idy, 2] = ps.xpg[i, j, k, l, 2]
 
             _h = u[i, j, :, :, k, l, 1]
             _b = u[i, j, :, :, k, l, 2]
@@ -55,6 +55,9 @@ end
 begin
     x_uni = coord[1, 1, 1]:(coord[end, 1, 1] - coord[1, 1, 1]) / (nx * nsp - 1):coord[end, 1, 1] |> collect
     y_uni = coord[1, 1, 2]:(coord[1, end, 2] - coord[1, 1, 2]) / (ny * nsp - 1):coord[1, end, 2] |> collect
+
+    n_ref = itp.interp2d(coord[:, 1, 1], coord[1, :, 2], prim[:, :, 1], kind="cubic")
+    n_uni = n_ref(x_uni, y_uni)
 
     u_ref = itp.interp2d(coord[:, 1, 1], coord[1, :, 2], prim[:, :, 2], kind="cubic")
     u_uni = u_ref(x_uni, y_uni)
@@ -72,8 +75,9 @@ begin
     qy_uni = qy_ref(x_uni, y_uni)
 end
 
+close("all")
 fig = figure("contour", figsize=(6.5,5))
-PyPlot.contourf(x_uni, y_uni, u_uni', linewidth=1, levels=20, cmap=ColorMap("inferno"))
+PyPlot.contourf(x_uni, y_uni, n_uni', linewidth=1, levels=20, cmap=ColorMap("inferno"))
 colorbar()
 PyPlot.streamplot(x_uni, y_uni, u_uni', v_uni', density=1.3, color="moccasin", linewidth=1)
 xlabel("x")
