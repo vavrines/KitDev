@@ -1,103 +1,19 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
-cd(@__DIR__)
-include("rhs.jl")
-
-function FR.filter_l2!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
-    p0 = axes(u, 1) |> first
-    p1 = axes(u, 1) |> last
-    q0 = axes(u, 2) |> first
-    q1 = axes(u, 2) |> last
-    @assert p0 >= 0
-    @assert q0 >= 0
-
-    λx, λξ = args[1:2]
-    for j in axes(u, 2), i in axes(u, 1)
-        u[i, j] /= (1.0 + λx * (i - p0 + 1)^2 * (i - p0)^2 + λξ * (j - q0 + 1)^2 * (j - q0)^2)
-    end
-
-    return nothing
-end
-
-function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
-    nx, nz = size(u)
-    λx, λξ = args[1:2]
-
-    if length(args) >= 3
-        Ncx = args[3]
-    else
-        Ncx = 0
-    end
-    if length(args) >= 4
-        Ncξ = args[4]
-    else
-        Ncξ = 0
-    end
-
-    σ1 = FR.filter_exp1d(nx-1, λx, Ncx)
-    σ2 = FR.filter_exp1d(nz-1, λξ, Ncξ)
-
-    for j in axes(u, 2), i in axes(u, 1)
-        u[i, j] *= σ1[i] * σ2[j]
-    end
-
-    return nothing
-end
-
-function filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
-    nx, nz = size(u)
-    λx, λξ = args[1:2]
-
-    if length(args) >= 3
-        Ncx = args[3]
-    else
-        Ncx = 0
-    end
-    if length(args) >= 4
-        Ncξ = args[4]
-    else
-        Ncξ = 0
-    end
-
-    σ1 = FR.filter_exp1d(nx-1, λx, Ncx)
-    σ2 = FR.filter_exp1d(nz-1, λξ, Ncξ)
-
-    for i in eachindex(σ1)
-        if i/length(σ1) <= 2/3
-            σ1[i] = 1.0
-        end
-    end
-    for i in eachindex(σ2)
-        if i/length(σ2) <= 2/3
-            σ2[i] = 1.0
-        end
-    end
-
-    for j in axes(u, 2), i in axes(u, 1)
-        u[i, j] *= σ1[i] * σ2[j]
-    end
-
-    return nothing
-end
-
 begin
     x0 = 0
     x1 = 1
     ncell = 100
     nface = ncell + 1
     dx = (x1 - x0) / ncell
-    deg = 2 # polynomial degree
+    deg = 3 # polynomial degree
     nsp = deg + 1
     γ = 5 / 3
     cfl = 0.05
     dt = cfl * dx
     t = 0.0
-end
 
-ps = FRPSpace1D(x0, x1, ncell, deg)
-
-begin
     uqMethod = "galerkin"
     nr = 9
     nRec = 18
@@ -105,8 +21,20 @@ begin
     parameter1 = 0.95
     parameter2 = 1.05
 end
-
+ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
+
+cd(@__DIR__)
+include("rhs.jl")
+include("filter.jl")
+
+tspan = (0.0, 0.15)
+p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, γ, uq)
+
+begin
+    V = vandermonde_matrix(ps.deg,ps.xpl)
+    VInv = inv(V)
+end
 
 u = zeros(ncell, nsp, 3, uq.nm+1)
 # stochastic density
@@ -143,43 +71,7 @@ for i = 1:ncell, j = 1:nsp
     u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
 end
 
-tspan = (0.0, 0.15)
-p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, γ, uq)
-
-begin
-    V = vandermonde_matrix(ps.deg,ps.xpl)
-    VInv = inv(V)
-
-    Nx = ncell
-    nLocal = deg+1
-    nStates = 3
-    nMoments = uq.nm+1 # number of moments
-
-    lambdaX = 1e-2
-    lambdaXi = 1e-5
-    filterType = "Lasso"
-
-    # compute L1 norms of basis
-    NxHat = 100
-    xHat = collect(range(-1,stop = 1,length = NxHat))
-    dxHat = xHat[2]-xHat[1];
-    PhiL1 = zeros(nLocal,nMoments)
-    for i = 1:nLocal
-        for j = 1:nMoments
-            PhiL1[i,j] = dxHat^2*sum(abs.(JacobiP(xHat, 0, 0, i-1).*JacobiP(xHat, 0, 0, j-1)))
-        end
-    end
-end
-
-u1 = deepcopy(u)
-#=for j = 1:size(u,1)
-    for s = 1:size(u,3)
-        uModal = VInv*u[j,:,s,:]                
-        u1[j,:,s,:] .= V*Filter(uModal,lambdaX,lambdaXi,filterType,PhiL1)
-    end
-end=#
-
-prob = ODEProblem(dudt!, u1, tspan, p)
+prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
@@ -190,8 +82,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
             uModal = VInv * itg.u[j, :, s, :]
-            FR.modal_filter!(uModal, 5, 5; filter = :exp)
-            #FR.filter_exp!(uModal, 5, 5)
+            FR.modal_filter!(uModal, 10, 10; filter = :houli)
             itg.u[j, :, s, :] .= V * uModal
         end
     end
@@ -212,3 +103,5 @@ end
 pic1 = plot(ps.x, sol[:, 2, 1, 1], label="mean", xlabel="x", ylabel="ρ")
 pic2 = plot(ps.x, sol[:, 2, 1, 2], label="std")
 plot(pic1, pic2)
+
+savefig("houli.png")
