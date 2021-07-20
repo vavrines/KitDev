@@ -4,14 +4,6 @@ using ProgressMeter: @showprogress
 cd(@__DIR__)
 include("rhs.jl")
 
-function FR.modal_filter!(u::AbstractMatrix{T}, args...; filter::Symbol) where {T<:AbstractFloat}
-    filtstr = "filter_" * string(filter) * "!"
-    filtfunc = Symbol(filtstr) |> eval
-    FR.filtfunc(u, args...)
-
-    return nothing
-end
-
 function FR.filter_l2!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     p0 = axes(u, 1) |> first
     p1 = axes(u, 1) |> last
@@ -198,7 +190,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
             uModal = VInv * itg.u[j, :, s, :]
-            FR.modal_filter!(uModal, 5, 5; filter = :l2)
+            FR.modal_filter!(uModal, 5, 5; filter = :exp)
             #FR.filter_exp!(uModal, 5, 5)
             itg.u[j, :, s, :] .= V * uModal
         end
