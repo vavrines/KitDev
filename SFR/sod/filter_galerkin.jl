@@ -7,7 +7,7 @@ include("rhs.jl")
 function FR.modal_filter!(u::AbstractMatrix{T}, args...; filter::Symbol) where {T<:AbstractFloat}
     filtstr = "filter_" * string(filter) * "!"
     filtfunc = Symbol(filtstr) |> eval
-    filtfunc(u, args...)
+    FR.filtfunc(u, args...)
 
     return nothing
 end
@@ -198,7 +198,8 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
             uModal = VInv * itg.u[j, :, s, :]
-            modal_filter!(uModal, 10, 10; filter = :houli)
+            FR.modal_filter!(uModal, 5, 5; filter = :l2)
+            #FR.filter_exp!(uModal, 5, 5)
             itg.u[j, :, s, :] .= V * uModal
         end
     end
