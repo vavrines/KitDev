@@ -15,8 +15,8 @@ begin
     t = 0.0
 
     uqMethod = "galerkin"
-    nr = 9
-    nRec = 18
+    nr = 6
+    nRec = 12
     opType = "uniform"
     parameter1 = 0.95
     parameter2 = 1.05
