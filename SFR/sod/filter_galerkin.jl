@@ -15,8 +15,8 @@ begin
     t = 0.0
 
     uqMethod = "galerkin"
-    nr = 6
-    nRec = 12
+    nr = 9
+    nRec = 18
     opType = "uniform"
     parameter1 = 0.95
     parameter2 = 1.05
@@ -38,28 +38,28 @@ end
 
 u = zeros(ncell, nsp, 3, uq.nm+1)
 # stochastic density
-#=for i = 1:ncell, j = 1:nsp
+for i = 1:ncell, j = 1:nsp
     prim = zeros(3, uq.nm+1)
     if ps.x[i] <= 0.5
         prim[1, :] .= uq.pce
         prim[2, 1] = 0.0
         prim[3, 1] = 0.5
     else
-        prim[:, 1] .= [0.3, 0.0, 0.625]
+        prim[:, 1] .= [0.125, 0.0, 0.625]
     end
 
     u[i, j, :, :] .= uq_prim_conserve(prim, γ, uq)
-end=#
+end
 
 # stochastic location
-for i = 1:ncell, j = 1:nsp
+#=for i = 1:ncell, j = 1:nsp
     prim = zeros(3, uq.nq)
 
     for k = 1:uq.nq
         if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
             prim[:, k] .= [1.0, 0.0, 0.5]
         else
-            prim[:, k] .= [0.4, 0.0, 0.625]
+            prim[:, k] .= [0.125, 0.0, 0.625]
         end
     end
 
@@ -69,6 +69,16 @@ for i = 1:ncell, j = 1:nsp
     end
 
     u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
+end=#
+
+# pre-filtering
+for j = 1:size(u, 1)
+    for s = 1:size(u, 3)
+        uModal = VInv * u[j, :, s, :]
+        #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
+        FR.modal_filter!(uModal, 5e-2, 1e-4; filter = :l2)
+        u[j, :, s, :] .= V * uModal
+    end
 end
 
 prob = ODEProblem(dudt!, u, tspan, p)
@@ -82,7 +92,9 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
             uModal = VInv * itg.u[j, :, s, :]
-            FR.modal_filter!(uModal, 10, 10; filter = :houli)
+            #FR.modal_filter!(uModal, 10, 10; filter = :exp)
+            FR.modal_filter!(uModal, 0.8e-2, 1e-5; filter = :l2)
+            #FR.modal_filter!(uModal, 5e-2, 1e-5; filter = :l2opt)
             itg.u[j, :, s, :] .= V * uModal
         end
     end
@@ -104,4 +116,9 @@ pic1 = plot(ps.x, sol[:, 2, 1, 1], label="mean", xlabel="x", ylabel="ρ")
 pic2 = plot(ps.x, sol[:, 2, 1, 2], label="std")
 plot(pic1, pic2)
 
-savefig("houli.png")
+#sol0 = deepcopy(sol)
+plot(ps.x, sol[:, 2, 1, 1], label="Optimized L2", xlabel="x", ylabel="ρ")
+plot!(ps.x, sol0[:, 2, 1, 1], label="L2")
+
+plot(ps.x, sol[:, 2, 1, 2], label="Optimized L2", xlabel="x", ylabel="ρ")
+plot!(ps.x, sol0[:, 2, 1, 2], label="L2")

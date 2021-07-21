@@ -1,45 +1,46 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
-function Filter(u::Array{Float64,1},lambda::Float64,filterType::String)
+function Filter(u::Array{Float64,2},lambdaX::Float64,lambdaXi::Float64,filterType::String,PhiL1=0.0,filterfunction=0.0)
     if filterType == "L2"
-        for i = 1:length(u)
-            u[i] = u[i]/(1.0+lambda*i^2*(i-1)^2);
-        end
-    elseif filterType == "Lasso"
-        N = obj.settings.N;
-        lambdaFilter = abs(u[N])/(N*(N-1)*PhiL1[N]);
-        for i = 2:length(u)
-            scL1 = 1.0-lambdaFilter*i*(i-1)*PhiL1[i]/abs(u[i]);
-            if scL1 < 0 || abs(u[i]) < 1.0e-7
-                scL1 = 0;
-            end
-            u[i] = scL1*u[i];
-        end
-    end
-    return u;
-end
-
-function Filter(u::Array{Float64,2},lambdaX::Float64,lambdaXi::Float64,filterType::String,PhiL1=0.0)
-    if filterType == "L2"
+        eta         =  lambdaXi* 1^2 * 2^2 + lambdaX * 1^2 * 2^2
+        #eta = 0.0
         for i = 1:size(u,1)
             for j = 1:size(u,2)
-                u[i,j] = u[i,j]/(1.0+lambdaX*i^2*(i-1)^2+lambdaXi*j^2*(j-1)^2);
+                if i == 1 && j == 1
+                    continue
+                elseif i == 1
+                    etaTmp         =  lambdaXi* 1^2 * 2^2
+                elseif j == 1
+                    etaTmp         =  lambdaX* 1^2 * 2^2
+                else
+                    etaTmp = eta
+                end
+                #etaTmp = 0.0
+                u[i,j] = u[i,j]/(1.0+lambdaX*i^2*(i-1)^2+lambdaXi*j^2*(j-1)^2-etaTmp);
             end
         end
     elseif filterType == "Lasso"
         #PhiL1 = ones(size(u))
-        N1 = size(u,1);
-        N2 = size(u,2)
+        N1 = size(u,1); # number moments in x
+        N2 = size(u,2); # number moments in xi
         lambda1 = abs(u[N1,1])/(N1*(N1-1)*PhiL1[N1,1]);
         lambda2 = abs(u[1,N2])/(N2*(N2-1)*PhiL1[1,N2]);
-        for i = 1:size(u,1)
-            for j = 1:size(u,2)
-                scL1 = 1.0-lambda1*i*(i-1)*PhiL1[i,j]/abs(u[i,j])-lambda2*j*(j-1)*PhiL1[i,j]/abs(u[i,j]);
+        for i = 1:N1
+            for j = 1:N2
+                scL1 = 1.0-(lambda1*i*(i-1)+lambda2*j*(j-1))*PhiL1[i,j]/abs(u[i,j]);
                 if scL1 < 0 || abs(u[i,j]) < 1.0e-7
                     scL1 = 0;
                 end
                 u[i,j] = scL1*u[i,j];
+            end
+        end
+    elseif filterType == "HouLi"
+        N1 = size(u,1); # number moments in x
+        N2 = size(u,2); # number moments in xi
+        for i = 1:N1
+            for j = 1:N2
+                u[i,j] = filterfunction[i,j]*u[i,j];
             end
         end
     end
@@ -52,7 +53,7 @@ begin
     ncell = 100
     nface = ncell + 1
     dx = (x1 - x0) / ncell
-    deg = 2 # polynomial degree
+    deg = 3 # polynomial degree
     nsp = deg + 1
     γ = 5 / 3
     cfl = 0.05
@@ -89,7 +90,7 @@ for i = 1:ncell, j = 1:nsp
 end
 
 # stochastic location
-#=for i = 1:ncell, j = 1:nsp
+for i = 1:ncell, j = 1:nsp
     prim = zeros(3, uq.nq)
 
     for k = 1:uq.nq
@@ -106,7 +107,7 @@ end
     end
 
     u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
-end=#
+end
 
 function dudt!(du, u, p, t)
     du .= 0.0
@@ -177,6 +178,14 @@ end
 tspan = (0.0, 0.15)
 p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, γ, uq)
 
+function HouLiFilterFilterFunction( eta,gammaHL ) 
+    if eta <= 2.0 / 3.0 
+        return 0.0;
+    else 
+        return eta^gammaHL;
+    end
+end
+
 begin
     V = vandermonde_matrix(ps.deg,ps.xpl)
     VInv = inv(V)
@@ -186,9 +195,9 @@ begin
     nStates = 3
     nMoments = uq.nm+1 # number of moments
 
-    lambdaX = 1e-2
-    lambdaXi = 1e-5
-    filterType = "Lasso"
+    lambdaX = 1e-2#0.01#1e-2
+    lambdaXi = 1e-5#0.01#1e-5
+    filterType = "L2"
 
     # compute L1 norms of basis
     NxHat = 100
@@ -197,7 +206,19 @@ begin
     PhiL1 = zeros(nLocal,nMoments)
     for i = 1:nLocal
         for j = 1:nMoments
-            PhiL1[i,j] = dxHat^2*sum(abs.(JacobiP(xHat, 0, 0, i-1).*JacobiP(xHat, 0, 0, j-1)))
+            PhiJ = sum(@. abs(uq.op.quad.weights * uq.phiRan[:, j])) / (uq.t2Product[j-1, j-1] + 1.e-7)
+            PhiI = dxHat*sum(abs.(JacobiP(xHat, 0, 0, i-1)))
+            PhiL1[i,j] = PhiI*PhiJ
+        end
+    end
+
+    filterfunction = ones(nLocal,nMoments)
+    gammaHL = 1.0#36;
+    epsilonXi   = 1.0 / lambdaXi;
+    epsilonX   = 1.0 / lambdaX;
+    for i = 1:nLocal
+        for j = 1:nMoments
+            filterfunction[i,j] = exp( -HouLiFilterFilterFunction( j-1 / ( nMoments + 1 ), gammaHL ) / epsilonXi - HouLiFilterFilterFunction( i-1 / ( nLocal + 1 ), gammaHL ) / epsilonX )^(dt*(lambdaXi+lambdaX))
         end
     end
 end
@@ -221,7 +242,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for j = 1:size(itg.u,1)
         for s = 1:size(itg.u,3)
             uModal = VInv*itg.u[j,:,s,:]                
-            itg.u[j,:,s,:] .= V*Filter(uModal,lambdaX,lambdaXi,filterType,PhiL1)
+            itg.u[j,:,s,:] .= V*Filter(uModal,lambdaX,lambdaXi,filterType,PhiL1,filterfunction)
         end
     end
 end
@@ -242,5 +263,3 @@ pic1 = plot(ps.x, sol[:, 2, 1, 1], label="mean", xlabel="x", ylabel="ρ")
 pic2 = plot(ps.x, sol[:, 2, 1, 2], label="std")
 plot(pic1, pic2)
 
-cd(@__DIR__)
-savefig("rho.png") 
