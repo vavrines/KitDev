@@ -25,7 +25,7 @@ end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 V = vandermonde_matrix(ps.deg,ps.xpl)
-VInv = inv(V)
+VInv = inv(Array(ps.V))
 
 cd(@__DIR__)
 include("rhs.jl")
@@ -61,8 +61,8 @@ begin
         for i = 1:ncell, j = 1:nsp
             prim = zeros(3, uq.nm+1)
             if ps.x[i] <= 0.5
-                #prim[1, :] .= uq.pce
-                prim[1, 1] = 1.0
+                prim[1, :] .= uq.pce
+                #prim[1, 1] = 1.0
                 prim[2, 1] = 0.0
                 prim[3, 1] = 0.5
             else
@@ -92,46 +92,61 @@ prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
-#=for iter = 1:100
-    for j = 1:size(itg.u, 1)
-        for s = 1:size(itg.u, 3)
-            uModal = VInv * itg.u[j, :, s, :]
-            #FR.filter_exp!(uModal, 5, 5)
-            FR.modal_filter!(uModal, 5e-2, 5e-2; filter = :l2)
-            #FR.modal_filter!(uModal, 5e-2, 5e-6; filter = :l2opt)
-            itg.u[j, :, s, :] .= V * uModal
-        end
+function detector(Se, deg, S0 = -3.0 * log10(deg), κ = 4.0)
+    if Se < S0 - κ
+        σ = 1.0
+    elseif S0 - κ <= Se < S0 + κ
+        σ = 0.5 * (1.0 - sin(0.5 * π * (Se - S0) / κ))
+    else
+        σ = 0.0
     end
-end=#
+
+    return σ < 0.99 ? true : false
+end
 
 @showprogress for iter = 1:nt
     step!(itg)
 
-    # filter
-    for epoch = 1:1
-        for j = 1:size(itg.u, 1)
+    for i = 1:size(itg.u, 1)
+        #=
+        ũ = VInv * itg.u[i, :, 1, 1]
+        su = log10(ũ[end]^2 / sum(ũ.^2))
+        isShock = detector(su, ps.deg)
+        if isShock
+            for j in axes(itg.u, 3), k in axes(itg.u, 4)
+                û = VInv * itg.u[i, :, j, k]
+                FR.modal_filter!(û, 1e-2; filter = :l2)
+                itg.u[i, :, j, k] .= ps.V * û
+            end
+        end
+
+        ṽ = itg.u[i, end÷2, 1, :]
+        sv = log10(ṽ[end]^2 / sum(ṽ.^2))
+        isShock = detector(sv, ps.deg)
+        if isShock
+            for j in axes(itg.u, 2), k in axes(itg.u, 3)
+                ṽ = @view itg.u[i, j, k, :]
+                FR.modal_filter!(ṽ, 5e-4; filter = :l2)
+            end
+        end=#
+
+        ũ = VInv * itg.u[i, :, 1, 1]
+        ṽ = itg.u[i, end÷2, 1, :]
+        su = log10(ũ[end]^2 / sum(ũ.^2))
+        sv = log10(ṽ[end]^2 / sum(ṽ.^2))
+        isShock = max(detector(su, ps.deg), detector(sv, ps.deg))
+        if isShock
             for s = 1:size(itg.u, 3)
-                uModal = VInv * itg.u[j, :, s, :]
-                #FR.filter_exp!(uModal, 10, 100)
-                #FR.modal_filter!(uModal, 0.8e-2, 1e-6; filter = :l2)
-                #FR.modal_filter!(uModal, 1e-2, 5e-6; filter = :l2opt)
-                #FR.modal_filter!(uModal, 5e-2, 5e-2; filter = :l2)
-                #FR.modal_filter!(uModal, 5e-2, 5e-5; filter = :l2)
-                itg.u[j, :, s, :] .= V * uModal
+                û = VInv * itg.u[i, :, s, :]
+                #FR.filter_exp!(û, 10, 100)
+                #FR.modal_filter!(û, 0.8e-2, 1e-6; filter = :l2)
+                FR.modal_filter!(û, 10e-2, 5e-5; filter = :l2opt)
+                #FR.modal_filter!(û, 5e-2, 5e-5; filter = :l2)
+                #FR.modal_filter!(û, 5e-2, 5e-5; filter = :l2)
+                itg.u[i, :, s, :] .= ps.V * û
             end
         end
     end
-
-    #=for j = 1:size(itg.u, 1)
-        for s = 1:size(itg.u, 3)
-            uModal = VInv * itg.u[j, :, s, :]
-            for k in axes(uModal, 2)
-                tmp = @view uModal[:, k]
-                FR.filter_exp!(tmp, 5, 0)
-            end
-            itg.u[j, :, s, :] .= V * uModal
-        end
-    end=#
 end
 
 begin
@@ -169,9 +184,4 @@ begin
     plot(pic1, pic2)
 end
 
-#sol0 = deepcopy(sol)
-plot(x, sol[:, 1, 1], label="Optimized L2", xlabel="x", ylabel="ρ")
-plot!(x, sol0[:, 1, 1], label="L2")
-
-plot(x, sol[:, 1, 2], label="Optimized L2", xlabel="x", ylabel="ρ")
-plot!(x, sol0[:, 1, 2], label="L2")
+plot(x, sol[:, 1, 2], label="adaptive", xlabel="x", ylabel="ρ")
