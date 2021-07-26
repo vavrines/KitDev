@@ -14,15 +14,7 @@ begin
     cfl = 0.05
     dt = cfl * dx / 10
     t = 0.0
-end
 
-cd(@__DIR__)
-include("../filter.jl")
-
-ps = FRPSpace1D(x0, x1, ncell, deg)
-VInv = inv(Array(ps.V))
-
-begin
     uqMethod = "galerkin"
     nr = 9
     nRec = 18
@@ -31,7 +23,13 @@ begin
     parameter2 = 1.0
 end
 
+ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
+VInv = inv(Array(ps.V))
+l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
+
+cd(@__DIR__)
+include("../filter.jl")
 
 u0 = zeros(ncell, nsp, uq.nm+1)
 u0q = zeros(ncell, nsp, uq.nq)
@@ -145,17 +143,32 @@ end
     # filter
     for i = 1:size(itg.u, 1)
         ũ = VInv * itg.u[i, :, :]
+        #su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
+        #sv = maximum([ũ[j, end]^2 / sum(ũ[j, :].^2) for j = 1:nsp])
+        #isShock = max(detector(log10(su), ps.deg), detector(log10(sv), ps.deg))
+        #=if isShock
+            λ1 = dt * (su)
+            λ2 = dt * (sv)
+
+            #FR.filter_exp!(uModal, 10, 100)
+            FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
+            #FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
+            #FR.modal_filter!(ũ; filter = :lasso)
+
+            itg.u[i, :, :] .= ps.V * ũ
+        end=#
+
         su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 / sum(ũ[j, :].^2) for j = 1:nsp])
+        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
         isShock = max(detector(log10(su), ps.deg), detector(log10(sv), ps.deg))
-        if isShock
+        if false#isShock
             λ1 = dt * (su)
             λ2 = dt * (sv)
 
             #FR.filter_exp!(uModal, 10, 100)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
-            FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
-            #FR.modal_filter!(ũ; filter = :lasso)
+            #FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
+            FR.modal_filter!(ũ; filter = :lasso)
 
             itg.u[i, :, :] .= ps.V * ũ
         end
@@ -204,7 +217,7 @@ uξ = chaos_ran(itg.u[53, 2, :], uq)
 plot(uq.op.quad.nodes, uξ)
 
 #sol0 = deepcopy(sol)
-
-#@save "l2.jld2" x sol
-#@save "lasso.jld2" x sol
-#@save "l2opt.jld2" x sol
+#@save "nofilter.jld2" x sol
+#@save "l2_apt.jld2" x sol
+#@save "lasso_apt.jld2" x sol
+#@save "l2opt_apt.jld2" x sol
