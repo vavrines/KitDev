@@ -103,24 +103,39 @@ function FR.filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat
     return nothing
 end
 
-begin
+function FR.filter_lasso!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+    nx, nz = size(u)
+    
+    λ1 = abs(u[nx,1])/(nx*(nx-1)*PhiL1[nx,1])
+    λ2 = abs(u[1,nz])/(nz*(nz-1)*PhiL1[1,nz])
+
+    for i = 1:nx
+        for j = 1:nz
+            scL1 = 1.0-(λ1*i*(i-1)+λ2*j*(j-1))*PhiL1[i,j]/abs(u[i,j])
+            if scL1 < 0 || abs(u[i,j]) < eps()
+                scL1 = 0
+            end
+            u[i, j] *= scL1
+        end
+    end
+
+    return nothing
+end
+
+begin # compute L1 norms of basis
     Nx = ncell
     nLocal = deg + 1
-    nStates = 3
-    nMoments = uq.nm + 1 # number of moments
+    nMoments = uq.nm + 1
 
-    lambdaX = 1e-2
-    lambdaXi = 1e-5
-    filterType = "Lasso"
-
-    # compute L1 norms of basis
     NxHat = 100
     xHat = collect(range(-1,stop = 1,length = NxHat))
     dxHat = xHat[2]-xHat[1];
     PhiL1 = zeros(nLocal,nMoments)
     for i = 1:nLocal
         for j = 1:nMoments
-            PhiL1[i,j] = dxHat^2*sum(abs.(JacobiP(xHat, 0, 0, i-1).*JacobiP(xHat, 0, 0, j-1)))
+            PhiJ = sum(@. abs(uq.op.quad.weights * uq.phiRan[:, j])) / (uq.t2Product[j-1, j-1] + 1.e-7)
+            PhiI = dxHat*sum(abs.(JacobiP(xHat, 0, 0, i-1)))
+            PhiL1[i,j] = PhiI*PhiJ
         end
     end
 end
