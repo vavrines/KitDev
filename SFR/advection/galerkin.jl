@@ -1,6 +1,8 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
+cd(@__DIR__)
+
 begin
     x0 = -1
     x1 = 1
@@ -105,17 +107,65 @@ prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
+begin
+    x = zeros(ncell * nsp)
+    w = zeros(ncell * nsp, uq.nm+1)
+    for i = 1:ncell
+        idx0 = (i - 1) * nsp
+
+        for j = 1:nsp
+            idx = idx0 + j
+            x[idx] = ps.xpg[i, j]
+
+            w[idx, :] .= itg.u[i, j, :]
+        end
+    end
+
+    sol = zeros(ncell*nsp, 2)
+    for i in axes(sol, 1)
+        sol[i, 1] = mean(w[i, :], uq.op)
+        sol[i, 2] = std(w[i, :], uq.op)
+    end
+
+    pic1 = plot(x, sol[:, 1], label="u", xlabel="x", ylabel="mean")
+    pic2 = plot(x, sol[:, 2], label="u", xlabel="x", ylabel="std")
+    plot(pic1, pic2)
+end
+sol0 = deepcopy(sol)
+
 @showprogress for iter = 1:nt
     step!(itg)
 end
 
-sol = zeros(ncell, nsp, 2)
-for i in axes(sol, 1), j in axes(sol, 2)
-    sol[i, j, 1] = mean(itg.u[i, j, :], uq.op)
-    sol[i, j, 2] = std(itg.u[i, j, :], uq.op)
+begin
+    x = zeros(ncell * nsp)
+    w = zeros(ncell * nsp, uq.nm+1)
+    for i = 1:ncell
+        idx0 = (i - 1) * nsp
+
+        for j = 1:nsp
+            idx = idx0 + j
+            x[idx] = ps.xpg[i, j]
+
+            w[idx, :] .= itg.u[i, j, :]
+        end
+    end
+
+    sol = zeros(ncell*nsp, 2)
+    for i in axes(sol, 1)
+        sol[i, 1] = mean(w[i, :], uq.op)
+        sol[i, 2] = std(w[i, :], uq.op)
+    end
+
+    pic1 = plot(x, sol[:, 1], label="u", xlabel="x", ylabel="mean")
+    pic2 = plot(x, sol[:, 2], label="u", xlabel="x", ylabel="std")
+    plot(pic1, pic2)
 end
 
-plot(ps.x, sol[:, 2, 1], label="mean", xlabel="x", ylabel="u")
-plot!(ps.x, sol[:, 2, 1] .+ sol[:, 2, 2], label="mean+std")
-plot!(ps.x, sol[:, 2, 1] .- sol[:, 2, 2], label="mean-std")
-savefig("wave.pdf")
+plot(x, sol[:, 1], label="Numerical", lw=2, xlabel="x", ylabel="u")
+plot!(x, sol0[:, 1], label="Exact", lw=2, line=:dash)
+savefig("wave_mean.pdf")
+
+plot(x, sol[:, 2], label="Numerical", lw=2, xlabel="x", ylabel="u")
+plot!(x, sol0[:, 2], label="Exact", lw=2, line=:dash)
+savefig("wave_std.pdf")
