@@ -162,10 +162,10 @@ begin
     plot(pic1, pic2)
 end
 
-plot(x, sol[:, 1], label="Numerical", lw=2, xlabel="x", ylabel="u")
+plot(x, sol[:, 1], label="Numerical", lw=2, xlabel="x", ylabel="expected value")
 plot!(x, sol0[:, 1], label="Exact", lw=2, line=:dash)
 savefig("wave_mean.pdf")
 
-plot(x, sol[:, 2], label="Numerical", lw=2, xlabel="x", ylabel="u")
+plot(x, sol[:, 2], label="Numerical", lw=2, xlabel="x", ylabel="standard deviation")
 plot!(x, sol0[:, 2], label="Exact", lw=2, line=:dash)
 savefig("wave_std.pdf")
