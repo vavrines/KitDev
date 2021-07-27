@@ -9,7 +9,7 @@ begin
     dx = (x1 - x0) / ncell
     deg = 2 # polynomial degree
     nsp = deg + 1
-    γ = 5 / 3
+    γ = 7 / 5
     cfl = 0.05
     dt = cfl * dx / (2.0)
     t = 0.0
@@ -26,13 +26,14 @@ ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 V = vandermonde_matrix(ps.deg,ps.xpl)
 VInv = inv(Array(ps.V))
+l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 
 cd(@__DIR__)
 include("rhs.jl")
-include("filter.jl")
+include("../filter.jl")
 
 begin
-    isRandomLocation = true
+    isRandomLocation = false#true
     isPrefilter = false#true
 
     u = zeros(ncell, nsp, 3, uq.nm+1)
@@ -45,7 +46,7 @@ begin
                 if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
                     prim[:, k] .= [1.0, 0.0, 0.5]
                 else
-                    prim[:, k] .= [0.4, 0.0, 0.625]
+                    prim[:, k] .= [0.125, 0.0, 0.625]
                 end
             end
 
@@ -61,8 +62,8 @@ begin
         for i = 1:ncell, j = 1:nsp
             prim = zeros(3, uq.nm+1)
             if ps.x[i] <= 0.5
-                prim[1, :] .= uq.pce
-                #prim[1, 1] = 1.0
+                #prim[1, :] .= uq.pce
+                prim[1, 1] = 1.0
                 prim[2, 1] = 0.0
                 prim[3, 1] = 0.5
             else
@@ -79,8 +80,9 @@ begin
             for s = 1:size(u, 3)
                 uModal = VInv * u[j, :, s, :]
                 #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
-                FR.modal_filter!(uModal, 5e-2, 5e-2; filter = :l2)
+                #FR.modal_filter!(uModal, 5e-2, 5e-2; filter = :l2)
                 #FR.modal_filter!(uModal, 5, 5; filter = :exp)
+                FR.modal_filter!(uModal; filter = :lasso)
                 u[j, :, s, :] .= V * uModal
             end
         end
@@ -91,18 +93,6 @@ p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, γ, uq)
 prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
-
-function detector(Se, deg, S0 = -3.0 * log10(deg), κ = 4.0)
-    if Se < S0 - κ
-        σ = 1.0
-    elseif S0 - κ <= Se < S0 + κ
-        σ = 0.5 * (1.0 - sin(0.5 * π * (Se - S0) / κ))
-    else
-        σ = 0.0
-    end
-
-    return σ < 0.99 ? true : false
-end
 
 @showprogress for iter = 1:nt
     step!(itg)
@@ -130,11 +120,11 @@ end
             end
         end=#
 
-        ũ = VInv * itg.u[i, :, 1, 1]
+        #=ũ = VInv * itg.u[i, :, 1, 1]
         ṽ = itg.u[i, end÷2, 1, :]
         su = log10(ũ[end]^2 / sum(ũ.^2))
         sv = log10(ṽ[end]^2 / sum(ṽ.^2))
-        isShock = max(detector(su, ps.deg), detector(sv, ps.deg))
+        isShock = max(shock_detector(su, ps.deg), shock_detector(sv, ps.deg))
         if isShock
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
@@ -145,7 +135,29 @@ end
                 #FR.modal_filter!(û, 5e-2, 5e-5; filter = :l2)
                 itg.u[i, :, s, :] .= ps.V * û
             end
+        end=#
+
+        ũ = VInv * itg.u[i, :, 1, :]
+        su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
+        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
+        isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
+        if false#isShock
+            λ1 = dt * (su)
+            λ2 = dt * (sv)
+
+            for s = 1:size(itg.u, 3)
+                û = VInv * itg.u[i, :, s, :]
+                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
+                #FR.modal_filter!(û, 1e-2, 1e-3; filter = :l2)
+                #FR.modal_filter!(û; filter = :lasso)
+
+                itg.u[i, :, s, :] .= ps.V * û
+            end
         end
+
+        tmp = @view itg.u[i, :, :, 1]
+        positive_limiter(tmp, γ, ps.wp/2)
     end
 end
 
@@ -184,4 +196,101 @@ begin
     plot(pic1, pic2)
 end
 
-plot(x, sol[:, 1, 2], label="adaptive", xlabel="x", ylabel="ρ")
+plot(x, sol0[:, 1, 2], label="No filter", xlabel="x", ylabel="ρ")
+plot!(x, sol[:, 1, 2], label="adaptive L²")
+
+
+
+function positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
+    prim = similar(u)
+    for i in axes(prim, 1)
+        prim[i, :] .= conserve_prim(u[i, :], γ)
+        prim[i, 3] = 1 / prim[i, 3]
+    end
+    prim_mean = [sum(prim[:, 1] .* weights),
+        sum(prim[:, 2] .* weights),
+        sum(prim[:, 3] .* weights)]
+    p_mean = 0.5 * prim_mean[1] * prim_mean[3]
+
+    ρ_min = minimum(prim[:, 1])
+    t_min = minimum(prim[:, 3])
+
+    ϵ = min(1e-13, prim_mean[1], p_mean)
+
+    t1 = min((prim_mean[1] - ϵ) / (prim_mean[1] - ρ_min), 1.0)
+    t2 = min((prim_mean[3] - ϵ) / (prim_mean[3] - t_min), 1.0)
+    t = min(t1, t2)
+
+    for i in axes(prim, 1)
+        prim[i, 1] = t * (prim[i, 1] - prim_mean[1]) + prim_mean[1]
+        prim[i, 3] = t * (prim[i, 3] - prim_mean[3]) + prim_mean[3]
+        u[i, :] .= prim_conserve(prim[i, :], γ)
+    end
+
+    return nothing
+end
+
+
+function positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
+    u_mean = [sum(u[:, 1] .* weights), sum(u[:, 2] .* weights), sum(u[:, 3] .* weights)]
+    prim_mean = conserve_prim(u_mean, γ)
+    p_mean = 0.5 * prim_mean[1] / prim_mean[3]
+
+    ϵ = min(1e-13, u_mean[1], p_mean)
+
+    ρ_min = minimum(u[:, 1])
+    t1 = min((u_mean[1] - ϵ) / (u_mean[1] - ρ_min), 1.0)
+
+    ρ̃ = zero(u[:, 1])
+    for i in eachindex(ρ̃)
+        ρ̃[i] = t1 * (u[i, 1] - prim_mean[1]) + prim_mean[1]
+    end
+
+
+    prim = similar(u)
+    for i in axes(prim, 1)
+        prim[i, :] .= conserve_prim(u[i, :], γ)
+    end
+    for i in axes(u, 1)
+        prim[i, 1] = t1 * (u[i, 1] - prim_mean[1]) + prim_mean[1]
+        prim[i, 3] = t1 * (prim[i, 3] - prim_mean[3]) + prim_mean[3]
+
+        u[i, :] .= prim_conserve(prim[i, :], γ)
+    end
+
+#=
+    ũ = deepcopy(u)
+    ũ[:, 1] .= ρ̃
+
+    prim = similar(u)
+    for i in axes(prim, 1)
+        prim[i, :] .= conserve_prim(ũ[i, :], γ)
+    end
+    pressure = [0.5 * prim[i, 1] / prim[i, 3] for i in axes(u, 1)]
+    prim = hcat(prim, pressure)
+
+    t = Float64[]
+    for i in axes(u, 1)
+        if prim[i, 4] < 0
+            tj = (ϵ - p_mean) / (prim[i, 4] - p_mean)
+            push!(t, tj)
+        end
+    end
+
+    if length(t) == 0
+        u .= ũ
+    else
+        t2 = min(minimum(t), t1)
+
+        for i in eachindex(ũ)
+            u[i] = t2 * (ũ[i, 1] - u_mean[1]) + u_mean[1]
+        end
+    end=#
+
+    return nothing
+end
+
+positive_limiter(itg.u[1, :, :, 1], γ, ps.wp/2)
+
+
+sol0 = deepcopy(sol)
