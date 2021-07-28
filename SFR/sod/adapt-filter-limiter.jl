@@ -20,7 +20,7 @@ function FR.positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:Abstra
     for i in axes(u, 2)
         u[1, i] = t1 * (u[1, i] - u_mean[1]) + u_mean[1]
     end
-#=
+
     # energy corrector
     tj = Float64[]
     for i in axes(u, 2)
@@ -39,7 +39,7 @@ function FR.positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:Abstra
             u[i, j] = t2 * (u[i, j] - u_mean[i]) + u_mean[i]
         end
     end
-=#
+
 
     return nothing
 end
@@ -58,7 +58,7 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
         sum(u[:, 3, :] .* weights),
     ]
     t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
-
+    
     # boundary variables
     ρb = zeros(2, length(wq))
     mb = zero(ρb)
@@ -88,7 +88,7 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
 
         if 1 / prim[end] < ϵ
             prob = NonlinearProblem{false}(FR.tj_equation, 1.0, ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ))
-            sol = solve(prob, FR.NonlinearSolve.NewtonRaphson(), tol = 1e-9)
+            sol = solve(prob, NewtonRaphson(), tol = 1e-8)
             push!(tj, sol.u)
         end
     end
@@ -97,13 +97,13 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
 
         if 1 / prim[end] < ϵ
             prob = NonlinearProblem{false}(FR.tj_equation, 1.0, (u[i, :, j], u_mean, γ, ϵ))
-            sol = solve(prob, FR.NonlinearSolve.NewtonRaphson(), tol = 1e-9)
+            sol = solve(prob, NewtonRaphson(), tol = 1e-8)
             push!(tj, sol.u)
         end
     end
 
     if length(tj) > 0
-        t2 = min(minimum(tj), 0.9)
+        t2 = minimum(tj)
         t2 < 1 && @show t2
         @assert 0 <= t2 <= 1 "incorrect range of limiter parameter t"
         for k in axes(u, 3), j in axes(u, 2), i in axes(u, 1)
@@ -189,15 +189,16 @@ begin
 
     if isPrefilter
         # pre-filtering
-        for j = 1:size(u, 1)
-            for s = 1:size(u, 3)
-                uModal = VInv * u[j, :, s, :]
-                #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
-                #FR.modal_filter!(uModal, 10, 10; filter = :exp)
-                FR.modal_filter!(uModal; filter = :lasso)
-                #FR.modal_filter!(uModal, 1e-3, 1e-3; filter = :l2opt)
-                FR.modal_filter!(uModal, 5e-3, 5e-4; filter = :l2)
-                u[j, :, s, :] .= V * uModal
+        for iter = 1:2
+            for j = 1:size(u, 1)
+                for s = 1:size(u, 3)
+                    uModal = VInv * u[j, :, s, :]
+                    #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
+                    #FR.modal_filter!(uModal, 10, 10; filter = :exp)
+                    FR.modal_filter!(uModal; filter = :lasso)
+                    FR.modal_filter!(uModal, 5e-2, 5e-2; filter = :l2)
+                    u[j, :, s, :] .= V * uModal
+                end
             end
         end
     end
@@ -215,20 +216,16 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
             for idx = 1:nsp, jdx = 1:3
                 uNodal[idx, jdx, :] .= chaos_ran(itg.u[i, idx, jdx, :], uq)
             end
-            positive_limiter(uNodal, γ, ps.wp/2, uq.op.quad.weights, ps.ll, ps.lr)
+            #positive_limiter(uNodal, γ, ps.wp/2, uq.op.quad.weights, ps.ll, ps.lr)
             for idx = 1:nsp
-                #tmp = @view uNodal[idx, :, :]
-                #positive_limiter(tmp, γ, uq.op.quad.weights)
+                tmp = @view uNodal[idx, :, :]
+                positive_limiter(tmp, γ, uq.op.quad.weights)
             end
             for idx = 1:nsp, jdx = 1:3
                 itg.u[i, idx, jdx, :] .= ran_chaos(uNodal[idx, jdx, :], uq)
             end
         end
-    end
 
-    step!(itg)
-
-    for i = 1:size(itg.u, 1)
         ũ = VInv * itg.u[i, :, 1, :]
         su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
         sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
@@ -241,13 +238,15 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
                 û = VInv * itg.u[i, :, s, :]
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
-                #FR.modal_filter!(û, 1e-3, 1e-5; filter = :l2)
+                #FR.modal_filter!(û, 1e-2, 1e-2; filter = :l2)
                 FR.modal_filter!(û; filter = :lasso)
 
                 itg.u[i, :, s, :] .= ps.V * û
             end
         end
     end
+
+    step!(itg)
 end
 
 begin
