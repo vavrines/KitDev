@@ -1,6 +1,70 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
+function tj_equation(t, p)
+    ũ, u_mean, γ, ϵ = p
+    
+    u_temp = [
+        t * (ũ[1] - u_mean[1]) + u_mean[1],
+        t * (ũ[2] - u_mean[2]) + u_mean[2],
+        t * (ũ[3] - u_mean[3]) + u_mean[3],
+    ]
+    prim_temp = conserve_prim(u_temp, γ)
+
+    return 0.5 * prim_temp[1] / prim_temp[3] - ϵ
+end
+
+function positive_limiter(u::AbstractMatrix{T}, γ, weights, ll, lr) where {T<:AbstractFloat}
+    # mean values
+    u_mean = [
+        sum(u[:, 1] .* weights),
+        sum(u[:, 2] .* weights),
+        sum(u[:, 3] .* weights),
+    ]
+    t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
+    p_mean = 0.5 * u_mean[1] * t_mean
+    
+    # boundary variables
+    ρb = [dot(u[:, 1], ll), dot(u[:, 1], lr)]
+    mb = [dot(u[:, 2], lr), dot(u[:, 2], ll)]
+    eb = [dot(u[:, 3], lr), dot(u[:, 3], ll)]
+
+    # density corrector
+    ϵ = min(1e-13, u_mean[1], p_mean)
+    ρ_min = minimum(ρb)
+    t1 = min((u_mean[1] - ϵ) / (u_mean[1] - ρ_min + 1e-8), 1.0)
+    if t1 < 0
+        @warn "incorrect sign of limiter parameter t"
+        t1 = 0.95#1.0
+    end
+
+    for i in axes(u, 1)
+        u[i, 1] = t1 * (u[i, 1] - u_mean[1]) + u_mean[1]
+    end
+
+    # energy corrector
+    tj = Float64[]
+    for i = 1:2
+        prim = conserve_prim([ρb[i], mb[i], eb[i]], γ)
+        pressure = 0.5 * prim[1] / prim[3]
+
+        if pressure < ϵ
+            prob = NonlinearProblem{false}(tj_equation, 1.0, ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ))
+            sol = solve(prob, NewtonRaphson(), tol = 1e-6)
+            push!(tj, sol.u)
+        end
+    end
+
+    if length(tj) > 0
+        t2 = minimum(tj)
+        for j in axes(u, 2), i in axes(u, 1)
+            u[i, j] = t2 * (u[i, j] - u_mean[j]) + u_mean[j]
+        end
+    end
+
+    return nothing
+end
+
 begin
     x0 = 0
     x1 = 1
@@ -141,23 +205,23 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
         su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
         sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
         isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
-        if false#isShock
+        if isShock
             λ1 = dt * (su)
             λ2 = dt * (sv)
 
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2)
-                FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
-                #FR.modal_filter!(û, 1e-2, 1e-3; filter = :l2)
+                #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
+                FR.modal_filter!(û, 1e-2, 1e-3; filter = :l2)
                 #FR.modal_filter!(û; filter = :lasso)
 
                 itg.u[i, :, s, :] .= ps.V * û
             end
-        end
 
-        tmp = @view itg.u[i, :, :, 1]
-        positive_limiter(tmp, γ, ps.wp/2)
+            tmp = @view itg.u[i, :, :, 1]
+            #positive_limiter(tmp, γ, ps.wp/2, ps.ll, ps.lr)
+        end
     end
 end
 
@@ -199,98 +263,6 @@ end
 plot(x, sol0[:, 1, 2], label="No filter", xlabel="x", ylabel="ρ")
 plot!(x, sol[:, 1, 2], label="adaptive L²")
 
-
-
-function positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
-    prim = similar(u)
-    for i in axes(prim, 1)
-        prim[i, :] .= conserve_prim(u[i, :], γ)
-        prim[i, 3] = 1 / prim[i, 3]
-    end
-    prim_mean = [sum(prim[:, 1] .* weights),
-        sum(prim[:, 2] .* weights),
-        sum(prim[:, 3] .* weights)]
-    p_mean = 0.5 * prim_mean[1] * prim_mean[3]
-
-    ρ_min = minimum(prim[:, 1])
-    t_min = minimum(prim[:, 3])
-
-    ϵ = min(1e-13, prim_mean[1], p_mean)
-
-    t1 = min((prim_mean[1] - ϵ) / (prim_mean[1] - ρ_min), 1.0)
-    t2 = min((prim_mean[3] - ϵ) / (prim_mean[3] - t_min), 1.0)
-    t = min(t1, t2)
-
-    for i in axes(prim, 1)
-        prim[i, 1] = t * (prim[i, 1] - prim_mean[1]) + prim_mean[1]
-        prim[i, 3] = t * (prim[i, 3] - prim_mean[3]) + prim_mean[3]
-        u[i, :] .= prim_conserve(prim[i, :], γ)
-    end
-
-    return nothing
-end
-
-
-function positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
-    u_mean = [sum(u[:, 1] .* weights), sum(u[:, 2] .* weights), sum(u[:, 3] .* weights)]
-    prim_mean = conserve_prim(u_mean, γ)
-    p_mean = 0.5 * prim_mean[1] / prim_mean[3]
-
-    ϵ = min(1e-13, u_mean[1], p_mean)
-
-    ρ_min = minimum(u[:, 1])
-    t1 = min((u_mean[1] - ϵ) / (u_mean[1] - ρ_min), 1.0)
-
-    ρ̃ = zero(u[:, 1])
-    for i in eachindex(ρ̃)
-        ρ̃[i] = t1 * (u[i, 1] - prim_mean[1]) + prim_mean[1]
-    end
-
-
-    prim = similar(u)
-    for i in axes(prim, 1)
-        prim[i, :] .= conserve_prim(u[i, :], γ)
-    end
-    for i in axes(u, 1)
-        prim[i, 1] = t1 * (u[i, 1] - prim_mean[1]) + prim_mean[1]
-        prim[i, 3] = t1 * (prim[i, 3] - prim_mean[3]) + prim_mean[3]
-
-        u[i, :] .= prim_conserve(prim[i, :], γ)
-    end
-
-#=
-    ũ = deepcopy(u)
-    ũ[:, 1] .= ρ̃
-
-    prim = similar(u)
-    for i in axes(prim, 1)
-        prim[i, :] .= conserve_prim(ũ[i, :], γ)
-    end
-    pressure = [0.5 * prim[i, 1] / prim[i, 3] for i in axes(u, 1)]
-    prim = hcat(prim, pressure)
-
-    t = Float64[]
-    for i in axes(u, 1)
-        if prim[i, 4] < 0
-            tj = (ϵ - p_mean) / (prim[i, 4] - p_mean)
-            push!(t, tj)
-        end
-    end
-
-    if length(t) == 0
-        u .= ũ
-    else
-        t2 = min(minimum(t), t1)
-
-        for i in eachindex(ũ)
-            u[i] = t2 * (ũ[i, 1] - u_mean[1]) + u_mean[1]
-        end
-    end=#
-
-    return nothing
-end
-
-positive_limiter(itg.u[1, :, :, 1], γ, ps.wp/2)
 
 
 sol0 = deepcopy(sol)
