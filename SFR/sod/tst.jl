@@ -1,50 +1,7 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
 using ProgressMeter: @showprogress
 
-function FR.positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
-    # mean values
-    u_mean = [
-        sum(u[1, :] .* weights),
-        sum(u[2, :] .* weights),
-        sum(u[3, :] .* weights),
-    ]
-    t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
-    p_mean = 0.5 * u_mean[1] * t_mean
-    
-    # density corrector
-    ϵ = min(1e-13, u_mean[1], p_mean)
-    ρ_min = minimum(u[:, 1]) # density minumum can emerge at both solution and flux points
-    t1 = min((u_mean[1] - ϵ) / (u_mean[1] - ρ_min + 1e-8), 1.0)
-    @assert 0 < t1 <= 1 "incorrect range of limiter parameter t"
-
-    for i in axes(u, 2)
-        u[1, i] = t1 * (u[1, i] - u_mean[1]) + u_mean[1]
-    end
-#=
-    # energy corrector
-    tj = Float64[]
-    for i in axes(u, 2)
-        prim = conserve_prim(u[:, i], γ)
-
-        if prim[3] < ϵ
-            prob = NonlinearProblem{false}(tj_equation, 1.0, (u[:, i], u_mean, γ, ϵ))
-            sol = solve(prob, NewtonRaphson(), tol = 1e-6)
-            push!(tj, sol.u)
-        end
-    end
-
-    if length(tj) > 0
-        t2 = minimum(tj)
-        for j in axes(u, 2), i in axes(u, 1)
-            u[i, j] = t2 * (u[i, j] - u_mean[i]) + u_mean[i]
-        end
-    end
-=#
-
-    return nothing
-end
-
-function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T<:AbstractFloat}
+function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0) where {T<:AbstractFloat}
     # tensorized quadrature weights
     weights = zeros(length(wp), length(wq))
     for i in axes(weights, 1), j in axes(weights, 2)
@@ -52,12 +9,9 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
     end
     
     # mean values
-    u_mean = [
-        sum(u[:, 1, :] .* weights),
-        sum(u[:, 2, :] .* weights),
-        sum(u[:, 3, :] .* weights),
-    ]
+    u_mean = [sum(u[:, j, :] .* weights) for j in axes(u, 2)]
     t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
+    @assert t_mean > 0
 
     # boundary variables
     ρb = zeros(2, length(wq))
@@ -75,7 +29,7 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
     ρ_min = min(minimum(ρb), minimum(u[:, 1, :])) # density minumum can emerge at both solution and flux points
     t1 = min((u_mean[1] - ϵ) / (u_mean[1] - ρ_min + 1e-8), 1.0)
     @assert 0 <= t1 <= 1 "incorrect range of limiter parameter t"
-    t1 < 1 && @show t1
+    #t1 < 1 && @show t1
 
     for i in axes(u, 1), j in axes(u, 3)
         u[i, 1, j] = t1 * (u[i, 1, j] - u_mean[1]) + u_mean[1]
@@ -103,14 +57,24 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
     end
 
     if length(tj) > 0
-        t2 = min(minimum(tj), 0.9)
-        t2 < 1 && @show t2
+        t2 = min(minimum(tj), t0)
+        #t2 < 1 && @show t2
         @assert 0 <= t2 <= 1 "incorrect range of limiter parameter t"
         for k in axes(u, 3), j in axes(u, 2), i in axes(u, 1)
             u[i, j, k] = t2 * (u[i, j, k] - u_mean[j]) + u_mean[j]
         end
     end
     
+    #=for j in axes(ρb, 2)
+        ρb[:, j] .= [dot(u[:, 1, j], ll), dot(u[:, 1, j], lr)]
+        eb[:, j] .= [dot(u[:, 3, j], ll), dot(u[:, 3, j], lr)]
+    end
+    if minimum(eb) <= 0
+        for k in axes(u, 3), i in axes(u, 1)
+            u[i, :, k] .= u_mean
+        end
+    end=#
+
     return nothing
 end
 
@@ -123,7 +87,7 @@ begin
     deg = 2 # polynomial degree
     nsp = deg + 1
     γ = 5 / 3
-    cfl = 0.02
+    cfl = 0.05
     dt = cfl * dx / (2.0)
     t = 0.0
     tspan = (0.0, 0.15)
@@ -140,6 +104,7 @@ uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 V = vandermonde_matrix(ps.deg,ps.xpl)
 VInv = inv(Array(ps.V))
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
+#l2 = [2 / (2 * (i-1) + 1) for i = 1:uq.nm+1]
 
 cd(@__DIR__)
 include("rhs.jl")
@@ -157,6 +122,7 @@ begin
 
             for k = 1:uq.nq
                 if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
+                #if ps.xpg[i, j] <= 0.5 + 0.05 * uq.op.quad.nodes[k] 
                     prim[:, k] .= [1.0, 0.0, 0.5]
                 else
                     prim[:, k] .= [0.125, 0.0, 0.625]
@@ -194,9 +160,10 @@ begin
                 uModal = VInv * u[j, :, s, :]
                 #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
                 #FR.modal_filter!(uModal, 10, 10; filter = :exp)
-                FR.modal_filter!(uModal; filter = :lasso)
+                #FR.modal_filter!(uModal; filter = :lasso)
                 #FR.modal_filter!(uModal, 1e-3, 1e-3; filter = :l2opt)
-                FR.modal_filter!(uModal, 5e-3, 5e-4; filter = :l2)
+                FR.modal_filter!(uModal, 1e-5, 1e-4; filter = :l2)
+                #FR.modal_filter!(uModal, 5e-2, 2e-4; filter = :l2)
                 u[j, :, s, :] .= V * uModal
             end
         end
@@ -209,41 +176,48 @@ nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
 @showprogress for iter = 1:nt
-    for i = 1:size(itg.u, 1)
-        begin
-            uNodal = zeros(nsp, 3, uq.nq)
-            for idx = 1:nsp, jdx = 1:3
-                uNodal[idx, jdx, :] .= chaos_ran(itg.u[i, idx, jdx, :], uq)
-            end
-            positive_limiter(uNodal, γ, ps.wp/2, uq.op.quad.weights, ps.ll, ps.lr)
-            for idx = 1:nsp
-                #tmp = @view uNodal[idx, :, :]
-                #positive_limiter(tmp, γ, uq.op.quad.weights)
-            end
-            for idx = 1:nsp, jdx = 1:3
-                itg.u[i, idx, jdx, :] .= ran_chaos(uNodal[idx, jdx, :], uq)
-            end
+    #=for i = 1:size(itg.u, 1)
+        uNodal = zeros(nsp, 3, uq.nq)
+        for idx = 1:nsp, jdx = 1:3
+            uNodal[idx, jdx, :] .= chaos_ran(itg.u[i, idx, jdx, :], uq)
         end
-    end
+        positive_limiter(uNodal, γ, ps.wp/2, uq.op.quad.weights, ps.ll, ps.lr, 0.99)
+        #=for idx = 1:nsp
+            tmp = @view uNodal[idx, :, :]
+            positive_limiter(tmp, γ, uq.op.quad.weights)
+        end=#
+        for idx = 1:nsp, jdx = 1:3
+            itg.u[i, idx, jdx, :] .= ran_chaos(uNodal[idx, jdx, :], uq)
+        end
+    end=#
 
     step!(itg)
 
     for i = 1:size(itg.u, 1)
         ũ = VInv * itg.u[i, :, 1, :]
         su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
-        isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
+        sv = maximum([ũ[j, end]^2 * l2[end] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
+        isShock = max(
+            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 1.0),
+            shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 0.2),
+        )
         if isShock
-            λ1 = dt * (su) * 5.0
-            λ2 = dt * (sv) * 5.0
+            #λ1 = dt * su * 10#2e-3
+            #λ2 = dt * sv * 10#1e-5
+
+            λ1 = dt * sqrt(su) * 10
+            λ2 = dt * sqrt(sv) * 10
 
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
-                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
-                #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
-                #FR.modal_filter!(û, 1e-3, 1e-5; filter = :l2)
-                FR.modal_filter!(û; filter = :lasso)
+                FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                #FR.modal_filter!(û; filter = :lasso)
+                
+                #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
+                #FR.modal_filter!(û, 5e-3, 5e-5; filter = :l2opt)
 
+                #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
+                
                 itg.u[i, :, s, :] .= ps.V * û
             end
         end
@@ -276,14 +250,23 @@ begin
         end
     end
 
-    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
+    #=pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
     plot!(pic1, x, sol[:, 2, 1], label="U")
     plot!(pic1, x, sol[:, 3, 1], label="T")
     pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
     plot!(pic2, x, sol[:, 2, 2], label="U")
     plot!(pic2, x, sol[:, 3, 2], label="T")
-    plot(pic1, pic2)
+    plot(pic1, pic2)=#
 end
 
-plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
+#plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
+
+plot(x0, sol0[:, 1, 2], label="Lasso", xlabel="x", ylabel="std")
+plot!(x, sol[:, 1, 2], label="Adaptive L²")
+
+plot(x0, sol0[:, 1, 1], label="Lasso", xlabel="x", ylabel="expected value")
+plot!(x, sol[:, 1, 1], label="Adaptive L²")
+
+
+#x0 = deepcopy(x); sol0 = deepcopy(sol)
+

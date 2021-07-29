@@ -9,14 +9,14 @@ function dudt!(du, u, p, t)
     nsp = size(u, 2)
 
     u_ran = zeros(ncell, nsp, 3, nq)
-    for i = 1:ncell, j = 1:nsp, k = 1:3
-        u_ran[i, j, k, :] .= chaos_ran(u[i, j, k, :], uq)
-    end
+    for i = 1:ncell
+        for j = 1:nsp, k = 1:3
+            u_ran[i, j, k, :] .= chaos_ran(u[i, j, k, :], uq)
+        end
 
-    #prim_ran = zeros(ncell, nsp, 3, nq)
-    #for i = 1:ncell, j = 1:nsp, k = 1:nq
-    #    prim_ran[i, j, :, k] .= conserve_prim(u_ran[i, j, :, k], γ)
-    #end
+        tmp = @view u_ran[i, :, :, :]
+        positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 0.99)
+    end
 
     f = zeros(ncell, nsp, 3, nm+1)
     for i = 1:ncell, j = 1:nsp
@@ -46,17 +46,14 @@ function dudt!(du, u, p, t)
         primL = conserve_prim(u_face[i, :, k, 2], γ)
         primR = conserve_prim(u_face[i, :, k, 1], γ)
         if min(primL[end], primR[end]) < 0
-            @show primL primR
-            u_mean = [
-                sum(u_ran[i, :, 1, k] .* ps.wp ./ 2),
-                sum(u_ran[i, :, 2, k] .* ps.wp ./ 2),
-                sum(u_ran[i, :, 3, k] .* ps.wp ./ 2),
-            ]
+            @info "negative interpolated temperature: ($(1/primL[end]), $(1/primR[end]))"
+
+            #=u_mean = [sum(u_ran[i, :, idx, k] .* ps.wp ./ 2) for idx in axes(u_ran, 3)]
             for pp1 = 1:nsp
-                #u_ran[i, pp1, :, k] .= u_mean
-            end
+                u_ran[i, pp1, :, k] .= u_mean
+            end=#
             tmp = @view u_ran[i, :, :, :]
-            positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr)
+            positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 0.9)
 
             for j = 1:3
                 u_face[i, j, k, 1] = dot(u_ran[i, :, j, k], lr)
@@ -65,27 +62,17 @@ function dudt!(du, u, p, t)
         end
     end
 
-    #=for i = 1:ncell, k = 1:nq
-        for j = 1:3
-            u_face[i, j, k, 1] = dot(prim_ran[i, :, j, k], lr)
-            u_face[i, j, k, 2] = dot(prim_ran[i, :, j, k], ll)
-        end
-
-        u_face[i, :, k, 1] .= prim_conserve(u_face[i, :, k, 1], γ)
-        u_face[i, :, k, 2] .= prim_conserve(u_face[i, :, k, 2], γ)
-    end=#
-
     fq_interaction = zeros(ncell + 1, 3, nq)
     for i = 2:ncell, j = 1:nq
         #=primL = conserve_prim(u_face[i-1, :, j, 1], γ)
         primR = conserve_prim(u_face[i, :, j, 1], γ)
         if primL[end] < 0
-            #primL[end] = 1 / 1e-6
-            #u_face[i-1, :, j, 1] .= prim_conserve(primL, γ)
+            primL[end] = 1 / 1e-6
+            u_face[i-1, :, j, 1] .= prim_conserve(primL, γ)
         end
         if primR[end] < 0
-            #primR[end] = 1 / 1e-6
-            #u_face[i, :, j, 1] .= prim_conserve(primR, γ)
+            primR[end] = 1 / 1e-6
+            u_face[i, :, j, 1] .= prim_conserve(primR, γ)
         end=#
 
         fw = @view fq_interaction[i, :, j]
