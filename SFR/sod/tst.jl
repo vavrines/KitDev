@@ -1,4 +1,4 @@
-using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
+using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots, JLD2
 using ProgressMeter: @showprogress
 
 function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0) where {T<:AbstractFloat}
@@ -96,8 +96,8 @@ begin
     nr = 9
     nRec = 18
     opType = "uniform"
-    parameter1 = 0.95
-    parameter2 = 1.05
+    parameter1 = 0.9
+    parameter2 = 1.1
 end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
@@ -110,63 +110,56 @@ cd(@__DIR__)
 include("rhs.jl")
 include("../filter.jl")
 
-begin
-    isRandomLocation = true
-    isPrefilter = true
+u = zeros(ncell, nsp, 3, uq.nm+1)
+case = ("location", nothing)[2]
 
-    u = zeros(ncell, nsp, 3, uq.nm+1)
-    if isRandomLocation
-        # stochastic location
-        for i = 1:ncell, j = 1:nsp
-            prim = zeros(3, uq.nq)
+if case == "location"
+    for i = 1:ncell, j = 1:nsp
+        prim = zeros(3, uq.nq)
 
-            for k = 1:uq.nq
-                if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
-                #if ps.xpg[i, j] <= 0.5 + 0.05 * uq.op.quad.nodes[k] 
-                    prim[:, k] .= [1.0, 0.0, 0.5]
-                else
-                    prim[:, k] .= [0.125, 0.0, 0.625]
-                end
-            end
-
-            prim_chaos = zeros(3, uq.nm+1)
-            for k = 1:3
-                prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
-            end
-
-            u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
-        end
-    else
-        # stochastic density
-        for i = 1:ncell, j = 1:nsp
-            prim = zeros(3, uq.nm+1)
-            if ps.x[i] <= 0.5
-                prim[1, :] .= uq.pce
-                #prim[1, 1] = 1.0
-                prim[2, 1] = 0.0
-                prim[3, 1] = 0.5
+        for k = 1:uq.nq
+            if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
+            #if ps.xpg[i, j] <= 0.5 + 0.05 * uq.op.quad.nodes[k] 
+                prim[:, k] .= [1.0, 0.0, 0.5]
             else
-                prim[:, 1] .= [0.125, 0.0, 0.625]
+                prim[:, k] .= [0.125, 0.0, 0.625]
             end
-
-            u[i, j, :, :] .= uq_prim_conserve(prim, γ, uq)
         end
+
+        prim_chaos = zeros(3, uq.nm+1)
+        for k = 1:3
+            prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
+        end
+
+        u[i, j, :, :] .= uq_prim_conserve(prim_chaos, γ, uq)
     end
 
-    if isPrefilter
-        # pre-filtering
-        for j = 1:size(u, 1)
-            for s = 1:size(u, 3)
-                uModal = VInv * u[j, :, s, :]
-                #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
-                #FR.modal_filter!(uModal, 10, 10; filter = :exp)
-                #FR.modal_filter!(uModal; filter = :lasso)
-                #FR.modal_filter!(uModal, 1e-3, 1e-3; filter = :l2opt)
-                FR.modal_filter!(uModal, 1e-5, 1e-4; filter = :l2)
-                #FR.modal_filter!(uModal, 5e-2, 2e-4; filter = :l2)
-                u[j, :, s, :] .= V * uModal
-            end
+    # pre-filtering
+    for j = 1:size(u, 1)
+        for s = 1:size(u, 3)
+            uModal = VInv * u[j, :, s, :]
+            #FR.modal_filter!(uModal, 15e-2, 10e-5; filter = :l2opt)
+            #FR.modal_filter!(uModal, 10, 10; filter = :exp)
+            #FR.modal_filter!(uModal; filter = :lasso)
+            #FR.modal_filter!(uModal, 1e-3, 1e-3; filter = :l2opt)
+            FR.modal_filter!(uModal, 1e-5, 1e-4; filter = :l2)
+            #FR.modal_filter!(uModal, 5e-2, 2e-4; filter = :l2)
+            u[j, :, s, :] .= V * uModal
         end
+    end
+else
+    for i = 1:ncell, j = 1:nsp
+        prim = zeros(3, uq.nm+1)
+        if ps.x[i] <= 0.5
+            prim[1, :] .= uq.pce
+            #prim[1, 1] = 1.0
+            prim[2, 1] = 0.0
+            prim[3, 1] = 0.5
+        else
+            prim[:, 1] .= [0.125, 0.0, 0.625]
+        end
+
+        u[i, j, :, :] .= uq_prim_conserve(prim, γ, uq)
     end
 end
 
@@ -195,26 +188,27 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
     for i = 1:size(itg.u, 1)
         ũ = VInv * itg.u[i, :, 1, :]
-        su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * l2[end] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
+        #su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
+        su = maximum([ũ[end, j]^2 / (sum(ũ[:, j].^2) + 1e-6) for j = 1:uq.nm+1])
+        sv = maximum([ũ[j, end]^2 * l2[end] / (sum(ũ[j, :].^2 .* l2) + 1e-6) for j = 1:nsp])
         isShock = max(
-            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 1.0),
-            shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 0.2),
+            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 2.0),
+        #    shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 4.0),
         )
         if isShock
             #λ1 = dt * su * 10#2e-3
             #λ2 = dt * sv * 10#1e-5
 
-            λ1 = dt * sqrt(su) * 10
-            λ2 = dt * sqrt(sv) * 10
+            λ1 = dt * sqrt(su) * 20#20
+            λ2 = dt * sqrt(sv) * 10#10
 
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
-                FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û; filter = :lasso)
                 
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
-                #FR.modal_filter!(û, 5e-3, 5e-5; filter = :l2opt)
+                #FR.modal_filter!(û, 5e-2, 1e-2; filter = :l2opt)
 
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
                 
@@ -250,23 +244,23 @@ begin
         end
     end
 
-    #=pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
+    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
     plot!(pic1, x, sol[:, 2, 1], label="U")
     plot!(pic1, x, sol[:, 3, 1], label="T")
     pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
     plot!(pic2, x, sol[:, 2, 2], label="U")
     plot!(pic2, x, sol[:, 3, 2], label="T")
-    plot(pic1, pic2)=#
+    plot(pic1, pic2)
 end
 
-#plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-
-plot(x0, sol0[:, 1, 2], label="Lasso", xlabel="x", ylabel="std")
-plot!(x, sol[:, 1, 2], label="Adaptive L²")
-
-plot(x0, sol0[:, 1, 1], label="Lasso", xlabel="x", ylabel="expected value")
-plot!(x, sol[:, 1, 1], label="Adaptive L²")
-
+plot(x, sol[:, 1, 1])
+plot(x, sol[:, 1, 2])
 
 #x0 = deepcopy(x); sol0 = deepcopy(sol)
 
+#sol1 = deepcopy(sol)
+#sol2 = deepcopy(sol)
+
+#@save "lasso.jld2" x sol1 sol2
+#@save "l2.jld2" x sol1 sol2
+#@save "l2_apt.jld2" x sol1 sol2
