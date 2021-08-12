@@ -1,0 +1,138 @@
+
+signal (15): Terminated
+in expression starting at /home2/vavrines/Coding/KitDev.jl/SFR/shock-vortex/fvm/t5.jl:109
+check_datatype_parameters at /buildworker/worker/package_linux64/build/src/jltypes.c:1056
+inst_datatype_inner at /buildworker/worker/package_linux64/build/src/jltypes.c:1278
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1686
+inst_datatype_inner at /buildworker/worker/package_linux64/build/src/jltypes.c:1428
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1686
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1638
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1638
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1638
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1652
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1655
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1655
+inst_type_w_ at /buildworker/worker/package_linux64/build/src/jltypes.c:1655
+jl_instantiate_unionall at /buildworker/worker/package_linux64/build/src/jltypes.c:898
+rename_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:469 [inlined]
+unalias_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:808
+subtype_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:836 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1285
+with_tvar at /buildworker/worker/package_linux64/build/src/subtype.c:714
+subtype_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:839 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1282
+with_tvar at /buildworker/worker/package_linux64/build/src/subtype.c:745
+subtype_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:839 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1282
+with_tvar at /buildworker/worker/package_linux64/build/src/subtype.c:745
+subtype_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:839 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1282
+with_tvar at /buildworker/worker/package_linux64/build/src/subtype.c:745
+subtype_unionall at /buildworker/worker/package_linux64/build/src/subtype.c:839 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1282
+exists_subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1426 [inlined]
+forall_exists_subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1454
+jl_subtype_env at /buildworker/worker/package_linux64/build/src/subtype.c:1888
+subtype_tuple_tail at /buildworker/worker/package_linux64/build/src/subtype.c:1082
+subtype_tuple at /buildworker/worker/package_linux64/build/src/subtype.c:1168 [inlined]
+subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1323
+exists_subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1426 [inlined]
+forall_exists_subtype at /buildworker/worker/package_linux64/build/src/subtype.c:1454
+jl_subtype_env at /buildworker/worker/package_linux64/build/src/subtype.c:1888
+intersect at /buildworker/worker/package_linux64/build/src/subtype.c:3023
+intersect_all at /buildworker/worker/package_linux64/build/src/subtype.c:3190
+jl_type_intersection_env_s at /buildworker/worker/package_linux64/build/src/subtype.c:3412
+jl_type_intersection2 at /buildworker/worker/package_linux64/build/src/gf.c:1590 [inlined]
+ml_matches at /buildworker/worker/package_linux64/build/src/gf.c:2950
+jl_matching_methods at /buildworker/worker/package_linux64/build/src/gf.c:1885
+_methods_by_ftype at ./reflection.jl:867 [inlined]
+#findall#216 at ./compiler/methodtable.jl:57 [inlined]
+findall##kw at ./compiler/methodtable.jl:54
+jfptr_findallYY.YY.kw_13944.clone_1 at /opt/julia-1.6.1/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2237 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2419
+#218 at ./compiler/methodtable.jl:67
+get! at ./iddict.jl:163 [inlined]
+#findall#217 at ./compiler/methodtable.jl:66 [inlined]
+findall##kw at ./compiler/methodtable.jl:65
+jfptr_findallYY.YY.kw_13939.clone_1 at /opt/julia-1.6.1/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2237 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2419
+abstract_call_gf_by_type at ./compiler/abstractinterpretation.jl:84
+abstract_call_known at ./compiler/abstractinterpretation.jl:1033
+abstract_call at ./compiler/abstractinterpretation.jl:1056
+abstract_call at ./compiler/abstractinterpretation.jl:1040
+abstract_eval_statement at ./compiler/abstractinterpretation.jl:1167
+typeinf_local at ./compiler/abstractinterpretation.jl:1462
+typeinf_nocycle at ./compiler/abstractinterpretation.jl:1520
+_typeinf at ./compiler/typeinfer.jl:214
+typeinf at ./compiler/typeinfer.jl:209
+typeinf_edge at ./compiler/typeinfer.jl:806
+abstract_call_method at ./compiler/abstractinterpretation.jl:490
+abstract_call_gf_by_type at ./compiler/abstractinterpretation.jl:143
+abstract_call_known at ./compiler/abstractinterpretation.jl:1033
+abstract_call at ./compiler/abstractinterpretation.jl:1056
+abstract_call at ./compiler/abstractinterpretation.jl:1040
+abstract_eval_statement at ./compiler/abstractinterpretation.jl:1167
+typeinf_local at ./compiler/abstractinterpretation.jl:1462
+typeinf_nocycle at ./compiler/abstractinterpretation.jl:1520
+_typeinf at ./compiler/typeinfer.jl:214
+typeinf at ./compiler/typeinfer.jl:209
+typeinf_edge at ./compiler/typeinfer.jl:806
+abstract_call_method at ./compiler/abstractinterpretation.jl:490
+abstract_call_gf_by_type at ./compiler/abstractinterpretation.jl:143
+abstract_call_known at ./compiler/abstractinterpretation.jl:1033
+abstract_call at ./compiler/abstractinterpretation.jl:1056
+abstract_call at ./compiler/abstractinterpretation.jl:1040
+abstract_eval_statement at ./compiler/abstractinterpretation.jl:1167
+typeinf_local at ./compiler/abstractinterpretation.jl:1462
+typeinf_nocycle at ./compiler/abstractinterpretation.jl:1520
+_typeinf at ./compiler/typeinfer.jl:214
+typeinf at ./compiler/typeinfer.jl:209
+typeinf_edge at ./compiler/typeinfer.jl:806
+abstract_call_method at ./compiler/abstractinterpretation.jl:490
+abstract_call_gf_by_type at ./compiler/abstractinterpretation.jl:143
+abstract_call_known at ./compiler/abstractinterpretation.jl:1033
+abstract_call at ./compiler/abstractinterpretation.jl:1056
+abstract_call at ./compiler/abstractinterpretation.jl:1040
+abstract_eval_statement at ./compiler/abstractinterpretation.jl:1167
+typeinf_local at ./compiler/abstractinterpretation.jl:1462
+typeinf_nocycle at ./compiler/abstractinterpretation.jl:1520
+_typeinf at ./compiler/typeinfer.jl:214
+typeinf at ./compiler/typeinfer.jl:209
+typeinf_edge at ./compiler/typeinfer.jl:806
+abstract_call_method at ./compiler/abstractinterpretation.jl:490
+abstract_call_gf_by_type at ./compiler/abstractinterpretation.jl:143
+abstract_call at ./compiler/abstractinterpretation.jl:1054
+abstract_call at ./compiler/abstractinterpretation.jl:1040
+abstract_eval_statement at ./compiler/abstractinterpretation.jl:1167
+typeinf_local at ./compiler/abstractinterpretation.jl:1462
+typeinf_nocycle at ./compiler/abstractinterpretation.jl:1520
+_typeinf at ./compiler/typeinfer.jl:214
+typeinf at ./compiler/typeinfer.jl:209
+typeinf_ext at ./compiler/typeinfer.jl:892
+typeinf_ext_toplevel at ./compiler/typeinfer.jl:925
+typeinf_ext_toplevel at ./compiler/typeinfer.jl:921
+jfptr_typeinf_ext_toplevel_10816.clone_1 at /opt/julia-1.6.1/lib/julia/sys.so (unknown line)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2237 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2419
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1703 [inlined]
+jl_type_infer at /buildworker/worker/package_linux64/build/src/gf.c:298
+jl_generate_fptr at /buildworker/worker/package_linux64/build/src/jitlayers.cpp:340
+jl_compile_method_internal at /buildworker/worker/package_linux64/build/src/gf.c:1970
+jl_compile_method_internal at /buildworker/worker/package_linux64/build/src/gf.c:2236 [inlined]
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2229 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2419
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1703 [inlined]
+start_task at /buildworker/worker/package_linux64/build/src/task.c:839
+unknown function (ip: (nil))
+unknown function (ip: (nil))
+Allocations: 47711823 (Pool: 47701546; Big: 10277); GC: 32
+<unknown>:0: error: starting new .cfi frame before finishing the previous one
+<unknown>:0: error: this directive must appear between .cfi_startproc and .cfi_endproc directives
+<unknown>:0: error: starting new .cfi frame before finishing the previous one
+<unknown>:0: error: this directive must appear between .cfi_startproc and .cfi_endproc directives
+[ Info: Kinetic will run serially
+[ Info: Kinetic will run with CUDA
+[ Info: 1: NVIDIA GeForce RTX 3070
+[ Info: Scalar operation is disabled in CUDA

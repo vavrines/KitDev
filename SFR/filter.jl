@@ -123,8 +123,8 @@ function FR.filter_lasso!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat
 end
 
 begin # compute L1 norms of basis
-    Nx = ncell
-    nLocal = deg + 1
+    Nx = ps.nx
+    nLocal = ps.deg + 1
     nMoments = uq.nm + 1
 
     NxHat = 100
