@@ -111,7 +111,7 @@ include("rhs.jl")
 include("../filter.jl")
 
 u = zeros(ncell, nsp, 3, uq.nm+1)
-case = ("location", nothing)[2]
+case = ("location", nothing)[1]
 
 if case == "location"
     for i = 1:ncell, j = 1:nsp
@@ -189,24 +189,41 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
     for i = 1:size(itg.u, 1)
         ũ = VInv * itg.u[i, :, 1, :]
         #su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        su = maximum([ũ[end, j]^2 / (sum(ũ[:, j].^2) + 1e-6) for j = 1:uq.nm+1])
+        #=su = maximum([ũ[end, j]^2 / (sum(ũ[:, j].^2) + 1e-6) for j = 1:uq.nm+1])
         sv = maximum([ũ[j, end]^2 * l2[end] / (sum(ũ[j, :].^2 .* l2) + 1e-6) for j = 1:nsp])
         isShock = max(
-            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 2.0),
-        #    shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 4.0),
-        )
-        if isShock
-            #λ1 = dt * su * 10#2e-3
-            #λ2 = dt * sv * 10#1e-5
+            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 4.0),
+            shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 4.0),
+        )=#
 
-            λ1 = dt * sqrt(su) * 20#20
-            λ2 = dt * sqrt(sv) * 10#10
+        su = (ũ[end, end]^2 + ũ[end-1, end]^2 + ũ[end, end-1]^2) / (sum(ũ.^2) + 1e-6)
+        isShock = max(
+            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 4.0),
+        )
+
+        su = ũ[end, 1]^2 / (sum(ũ[:, 1].^2) + 1e-6)
+        sv = ũ[1, end]^2 * l2[end] / (sum(ũ[1, :].^2 .* l2) + 1e-6)
+
+        if isShock
+            #λ1 = 2e-3
+            #λ2 = 1e-5
+            λ1 = dt * exp(0.875/1 * (ps.deg+1)) * 1.2
+            λ2 = λ1 / 225
+
+            #λ1 = sqrt(su) * 10.0#20
+            #λ2 = sqrt(sv) * 1#10
+            #λ1 = 5e-2
+            #λ2 = 5e-4
 
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
-                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
                 #FR.modal_filter!(û; filter = :lasso)
                 
+                #FR.modal_filter!(û, 6, 6; filter = :exp)
+
+
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
                 #FR.modal_filter!(û, 5e-2, 1e-2; filter = :l2opt)
 

@@ -15,7 +15,7 @@ function dudt!(du, u, p, t)
         end
 
         tmp = @view u_ran[i, :, :, :]
-        positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 0.99)
+        positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 1.0)
     end
 
     f = zeros(ncell, nsp, 3, nm+1)
@@ -53,7 +53,7 @@ function dudt!(du, u, p, t)
                 u_ran[i, pp1, :, k] .= u_mean
             end=#
             tmp = @view u_ran[i, :, :, :]
-            positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 0.9)
+            positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 0.99)
 
             for j = 1:3
                 u_face[i, j, k, 1] = dot(u_ran[i, :, j, k], lr)
