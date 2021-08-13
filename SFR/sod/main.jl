@@ -217,12 +217,12 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
-                FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
                 #FR.modal_filter!(û; filter = :lasso)
                 
-                #FR.modal_filter!(û, 6, 6; filter = :exp)
-
+                #FR.modal_filter!(û, 4.5; filter = :exp)
+                FR.modal_filter!(û, 8, 7; filter = :exp)
 
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
                 #FR.modal_filter!(û, 5e-2, 1e-2; filter = :l2opt)
