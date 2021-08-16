@@ -1,5 +1,5 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots, JLD2
-using ProgressMeter: @showprogress
+using KitBase.ProgressMeter: @showprogress
 
 function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0) where {T<:AbstractFloat}
     # tensorized quadrature weights
@@ -196,33 +196,37 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
             shock_detector(log10(sv), ps.deg, -3 * log10(ps.deg), 4.0),
         )=#
 
-        su = (ũ[end, end]^2 + ũ[end-1, end]^2 + ũ[end, end-1]^2) / (sum(ũ.^2) + 1e-6)
+        #su = (ũ[end, end]^2 + ũ[end-1, end]^2 + ũ[end, end-1]^2) / (sum(ũ.^2) + 1e-6)
+        su = (sum(ũ[end, :].^2) + sum(ũ[:, end].^2) - ũ[end, end]^2) / (sum(ũ.^2) + 1e-6)
         isShock = max(
             shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 4.0),
         )
 
         su = ũ[end, 1]^2 / (sum(ũ[:, 1].^2) + 1e-6)
         sv = ũ[1, end]^2 * l2[end] / (sum(ũ[1, :].^2 .* l2) + 1e-6)
+        #sv = ũ[1, end]^2 / (sum(ũ[1, :].^2) + 1e-6)
 
         if isShock
             #λ1 = 2e-3
             #λ2 = 1e-5
-            λ1 = dt * exp(0.875/1 * (ps.deg+1)) * 1.2
-            λ2 = λ1 / 225
+            #λ1 = dt * exp(0.875/1 * (ps.deg+1)) * 1.2
+            
 
-            #λ1 = sqrt(su) * 10.0#20
-            #λ2 = sqrt(sv) * 1#10
+            λ1 = sqrt(su) * 3.0#20
+            λ2 = sqrt(sv) * 3#10
             #λ1 = 5e-2
             #λ2 = 5e-4
 
+            #λ2 = λ1 / 225
+
             for s = 1:size(itg.u, 3)
                 û = VInv * itg.u[i, :, s, :]
-                #FR.modal_filter!(û, λ1, λ2; filter = :l2)
+                FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
                 #FR.modal_filter!(û; filter = :lasso)
                 
                 #FR.modal_filter!(û, 4.5; filter = :exp)
-                FR.modal_filter!(û, 8, 7; filter = :exp)
+                #FR.modal_filter!(û, 8, 7; filter = :exp)
 
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
                 #FR.modal_filter!(û, 5e-2, 1e-2; filter = :l2opt)

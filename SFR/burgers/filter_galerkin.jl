@@ -1,12 +1,11 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots, JLD2
-using ProgressMeter: @showprogress
+using KitBase.ProgressMeter: @showprogress
 using Base.Threads: @threads
-using Flux: relu
 
 begin
     x0 = 0
     x1 = 3
-    ncell = 300
+    ncell = 100#300
     nface = ncell + 1
     dx = (x1 - x0) / ncell
     deg = 3 # polynomial degree
@@ -31,9 +30,13 @@ l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 cd(@__DIR__)
 include("../filter.jl")
 
+function l2_strength(a1, a2=a1)
+    (1/a1 - 1)/2/ps.deg^2 / (ps.deg+1)^2, (1/a2-1)/2/uq.nm^2 / (uq.nm+1)^2
+end
+
 u0 = zeros(ncell, nsp, uq.nm+1)
 u0q = zeros(ncell, nsp, uq.nq)
-let p0 = 0.5, p1 = 1.5, σ = 0.2, val0 = 10.0, val1 = 1.0
+let p0 = 0.5, p1 = 1.5, σ = 0.2, val0 = 11.0, val1 = 1.0
     for i = 1:ncell
         for j = 1:uq.nq
             if ps.x[i] < p0 + σ * uq.pceSample[j]
@@ -125,18 +128,6 @@ prob = ODEProblem(dudt!, u0, tspan, p)
 nt = tspan[2] ÷ dt |> Int
 itg = init(prob, Tsit5(), saveat = tspan[2], adaptive = false, dt = dt)
 
-function detector(Se, deg, S0 = -3.0 * log10(deg), κ = 4.0)
-    if Se < S0 - κ
-        σ = 1.0
-    elseif S0 - κ <= Se < S0 + κ
-        σ = 0.5 * (1.0 - sin(0.5 * π * (Se - S0) / κ))
-    else
-        σ = 0.0
-    end
-
-    return σ < 0.99 ? true : false
-end
-
 @showprogress for iter = 1:nt
     step!(itg)
 
@@ -158,17 +149,31 @@ end
             itg.u[i, :, :] .= ps.V * ũ
         end=#
 
-        su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
-        isShock = max(detector(log10(su), ps.deg), detector(log10(sv), ps.deg))
-        if false#isShock
-            λ1 = dt * (su)
-            λ2 = dt * (sv)
+        su = maximum([ũ[end, j]^2 / (sum(ũ[:, j].^2) + 1e-4) for j = 1:uq.nm+1])
+        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / (sum(ũ[j, :].^2 .* l2) + 1e-4) for j = 1:nsp])
+        isShock = max(
+            #shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 1.0),
+            shock_detector(log10(sv), ps.deg, -2 * log10(ps.deg), 1.0),
+        )
 
-            #FR.filter_exp!(uModal, 10, 100)
-            #FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
+        if isShock
+            #FR.modal_filter!(ũ, 16; filter = :exp)
+
+            #FR.modal_filter!(ũ, 8, 8; filter = :houli)
+
+            #λ1 = dt * sqrt(su) * 2.0
+            #λ2 = dt * sqrt(sv) * 2.0
+
+            #λ1 = 3.5e-2
+            #λ2 = λ1 * ps.deg^2 * (ps.deg+1)^2 / uq.nm^2 / (uq.nm+1)^2
+
+            λ1, λ2 = l2_strength(0.6)
+
+            FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
-            FR.modal_filter!(ũ; filter = :lasso)
+            #FR.modal_filter!(ũ, PhiL1; filter = :lasso)
+            #FR.modal_filter!(ũ, 8, 8; filter = :exp)
+
 
             itg.u[i, :, :] .= ps.V * ũ
         end
@@ -210,14 +215,19 @@ begin
     plot(pic1, pic2)
 end
 
-plot(x, sol[:, 2], label="L2", xlabel="x", ylabel="std")
-plot!(x, sol0[:, 2], label="Lasso", line=:dash)
+plot(x, sol0[:, 2], label="Lasso", line=:dash)
+plot!(x, sol[:, 2], label="L2", xlabel="x", ylabel="std")
 
 uξ = chaos_ran(itg.u[53, 2, :], uq)
 plot(uq.op.quad.nodes, uξ)
 
-#sol0 = deepcopy(sol)
+sol0 = deepcopy(sol)
 #@save "nofilter.jld2" x sol
 #@save "l2_apt.jld2" x sol
 #@save "lasso_apt.jld2" x sol
 #@save "l2opt_apt.jld2" x sol
+#@save "exp.jld2" x sol
+#@save "houli.jld2" x sol
+#@save "lasso.jld2" x sol
+#@save "l2.jld2" x sol
+#@save "l2_apt.jld2" x sol

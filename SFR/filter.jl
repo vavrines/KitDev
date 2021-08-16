@@ -1,4 +1,4 @@
-function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+#=function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     nx, nz = size(u)
     λx, λξ = args[1:2]
 
@@ -21,6 +21,40 @@ function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     end
 
     return nothing
+end=#
+
+function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+    nx, nz = size(u)
+    λ = args[1]
+
+    if length(args) >= 2
+        Nc = args[2]
+    else
+        Nc = 0
+    end
+
+    σ = filter_exp2d(nx-1, nz-1, λ, Nc)
+
+    for j in axes(u, 2), i in axes(u, 1)
+        u[i, j] *= σ[i, j]
+    end
+
+    return nothing
+end
+
+function filter_exp2d(Nx, Ny, sp, Nc = 0)
+    alpha = -log(eps())
+
+    filterdiag = ones((Nx + 1), (Ny + 1))
+    for i = 0:Nx
+        for j = 0:Ny
+            if i + j >= Nc
+                filterdiag[i+1, j+1] = exp(-alpha * ((i + j - Nc) / (Nx + Ny - Nc))^sp)
+            end
+        end
+    end
+
+    return filterdiag
 end
 
 function FR.filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
