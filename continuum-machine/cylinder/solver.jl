@@ -1,5 +1,6 @@
-using KitBase, Plots, JLD2
+using Kinetic, Plots, LinearAlgebra, JLD2, Flux
 using KitBase.ProgressMeter: @showprogress
+using Flux: onecold
 pyplot()
 
 function rcnew!(
@@ -180,27 +181,8 @@ end
 
 ctr, a1face, a2face = init_fvm(ks, ks.ps)
 cd(@__DIR__)
-#@load "restart.jld2" ctr
-
-t = 0.0
-dt = timestep(ks, ctr, 0.0)
-nt = ks.set.maxTime ÷ dt |> Int
-@showprogress for iter = 1:100#nt
-    #reconstruct!(ks, ctr)
-    rcnew!(ks, ctr)
-    evolve!(ks, ctr, a1face, a2face, dt)
-    update!(ks, ctr, a1face, a2face, dt, zeros(4))
-
-    for j = ks.ps.nθ÷2+1:ks.ps.nθ
-        ctr[ks.ps.nr+1, j].w .= ks.ib.fw(6, 0)
-        ctr[ks.ps.nr+1, j].prim .= conserve_prim(ctr[ks.ps.nr+1, j].w, ks.gas.γ)
-        ctr[ks.ps.nr+1, j].sw .= 0.0
-        ctr[ks.ps.nr+1, j].h .= maxwellian(ks.vs.u, ks.vs.v, ctr[ks.ps.nr+1, j].prim)
-        ctr[ks.ps.nr+1, j].b .= ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
-    end
-
-    global t += dt
-end
+@load "restart.jld2" ctr
+@load "../2d/nn.jld2" nn
 
 begin
     sol = zeros(ks.ps.nr, ks.ps.nθ, 4)
@@ -216,5 +198,23 @@ begin
     )
 end
 
-#cd(@__DIR__)
-#@save "restart.jld2" ctr
+# detector
+rmap = zeros(ks.pSpace.nr, ks.pSpace.nθ)
+for j = 1:ks.pSpace.nθ
+    for i = 1:ks.pSpace.nr
+        w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
+        sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
+        gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+        prim = conserve_prim(w, ks.gas.γ)
+        tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+        regime = nn([w; gra; tau]) |> onecold
+        rmap[i, j] = regime
+    end
+end
+
+contourf(
+    ps.x[1:ks.ps.nr, 1:ks.ps.nθ],
+    ps.y[1:ks.ps.nr, 1:ks.ps.nθ],
+    rmap,
+    ratio = 1,
+)

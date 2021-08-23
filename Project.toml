@@ -1,6 +1,8 @@
 [deps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 FluxReconstruction = "19bbc782-a6fb-447a-8120-ff40275555e1"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+Kinetic = "82403725-3cee-4f7c-b214-1ce71af4a797"
 KitBase = "86eed249-3a28-466f-8d3a-596821e1af9a"
 Langevin = "42433972-eea5-42bb-ab72-392315b4e8df"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
