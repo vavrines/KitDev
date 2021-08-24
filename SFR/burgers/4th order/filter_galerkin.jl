@@ -28,7 +28,7 @@ VInv = inv(Array(ps.V))
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 
 cd(@__DIR__)
-include("../filter.jl")
+include("../../filter.jl")
 
 function l2_strength(a1, a2=a1)
     (1/a1 - 1)/2/ps.deg^2 / (ps.deg+1)^2, (1/a2-1)/2/uq.nm^2 / (uq.nm+1)^2

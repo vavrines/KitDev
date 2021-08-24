@@ -23,7 +23,7 @@
     return nothing
 end=#
 
-function FR.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+function KitBase.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     nx, nz = size(u)
     λ = args[1]
 
@@ -57,7 +57,7 @@ function filter_exp2d(Nx, Ny, sp, Nc = 0)
     return filterdiag
 end
 
-function FR.filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
+function KitBase.filter_houli!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     nx, nz = size(u)
     λx, λξ = args[1:2]
 
