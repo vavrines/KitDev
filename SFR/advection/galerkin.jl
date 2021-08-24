@@ -1,18 +1,18 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots
-using ProgressMeter: @showprogress
+using KitBase.ProgressMeter: @showprogress
 
 cd(@__DIR__)
 
 begin
     x0 = -1
     x1 = 1
-    ncell = 100
+    ncell = 40
     nface = ncell + 1
     dx = (x1 - x0) / ncell
     deg = 2 # polynomial degree
     nsp = deg + 1
     γ = 5 / 3
-    cfl = 0.05
+    cfl = 0.03
     dt = cfl * dx
     t = 0.0
 end
@@ -101,7 +101,7 @@ function dudt!(du, u, p, t)
     end
 end
 
-tspan = (0.0, 2.0)
+tspan = (0.0, 50.0)
 p = (ps.J, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr, ps.dx, γ, uq, a)
 prob = ODEProblem(dudt!, u, tspan, p)
 nt = tspan[2] ÷ dt |> Int
@@ -162,10 +162,10 @@ begin
     plot(pic1, pic2)
 end
 
-plot(x, sol[:, 1], label="Numerical", lw=2, xlabel="x", ylabel="expected value")
-plot!(x, sol0[:, 1], label="Exact", lw=2, line=:dash)
+plot(x, sol[:, 1], label="Numerical", lw=1.5, xlabel="x", ylabel="expected value")
+plot!(x, sol0[:, 1], label="Exact", lw=1.5, line=:dash)
 savefig("wave_mean.pdf")
 
-plot(x, sol[:, 2], label="Numerical", lw=2, xlabel="x", ylabel="standard deviation")
-plot!(x, sol0[:, 2], label="Exact", lw=2, line=:dash)
+plot(x, sol[:, 2], label="Numerical", lw=1.5, xlabel="x", ylabel="standard deviation")
+plot!(x, sol0[:, 2], label="Exact", lw=1.5, line=:dash)
 savefig("wave_std.pdf")

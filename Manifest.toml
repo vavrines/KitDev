@@ -690,8 +690,6 @@ version = "0.7.7"
 [[KitBase]]
 deps = ["CSV", "CUDA", "Conda", "Dates", "Distributed", "Distributions", "FFTW", "FastGaussQuadrature", "FileIO", "FiniteMesh", "JLD2", "LinearAlgebra", "MultivariatePolynomials", "OffsetArrays", "Optim", "Parameters", "Plots", "ProgressMeter", "PyCall", "RecipesBase", "Reexport", "SpecialFunctions", "StaticArrays", "StructArrays", "TypedPolynomials", "WriteVTK"]
 git-tree-sha1 = "65d0b11677ebe2a09968a31f4e1f0462fcbd0363"
-repo-rev = "main"
-repo-url = "https://github.com/vavrines/KitBase.jl.git"
 uuid = "86eed249-3a28-466f-8d3a-596821e1af9a"
 version = "0.7.2"
 
