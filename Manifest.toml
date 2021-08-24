@@ -707,9 +707,9 @@ version = "3.100.1+0"
 
 [[LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Printf", "Unicode"]
-git-tree-sha1 = "8b2ada8605ac207b4382cd3549e807ad97916b5b"
+git-tree-sha1 = "23a47d417a3cd9c2e73c854bac7dd4731c105ef7"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "4.3.0"
+version = "4.4.0"
 
 [[LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1231,9 +1231,9 @@ version = "0.3.4"
 
 [[RecursiveArrayTools]]
 deps = ["ArrayInterface", "ChainRulesCore", "DocStringExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArrays", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "82efc2429a2b2e72daf2322dbdf5fc60df6dc51f"
+git-tree-sha1 = "00bede2eb099dcc1ddc3f9ec02180c326b420ee2"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.17.1"
+version = "2.17.2"
 
 [[RecursiveFactorization]]
 deps = ["LinearAlgebra", "LoopVectorization"]
@@ -1242,9 +1242,9 @@ uuid = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
 version = "0.1.13"
 
 [[Reexport]]
-git-tree-sha1 = "adcd36e8ba9665c88eb0bd156d4e2a19f9b0d889"
+git-tree-sha1 = "22a05aff275f6704f8769799beafe47ee7d14416"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
-version = "1.2.0"
+version = "1.2.1"
 
 [[Requires]]
 deps = ["UUIDs"]

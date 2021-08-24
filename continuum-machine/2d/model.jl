@@ -11,7 +11,7 @@ Y1 = Float32.(Y1) |> device
 X2 = Float32.(X2) |> device
 Y2 = Float32.(Y2) |> device
 
-isNewStart = true
+isNewStart = false#true
 if isNewStart
     nn = Chain(
         Dense(9, 36, relu),

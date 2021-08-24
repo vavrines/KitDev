@@ -1,5 +1,5 @@
 using Kinetic, Plots, LinearAlgebra, JLD2
-using ProgressMeter: @showprogress
+using KitBase.ProgressMeter: @showprogress
 
 X = Float32.([[1.0, 0.0, 0.0, 1.0]; zeros(4); 1e-4])
 Y = Float32.([1.0, 0.0])
@@ -94,7 +94,7 @@ for loop = 1:10
     t = 0.0
     dt = timestep(ks, ctr, t)
     nt = Int(ks.set.maxTime ÷ dt) + 1
-    res = zero(ks.ib.wL)
+    res = zeros(4)
     @showprogress for iter = 1:1000#nt
         if iter%39 == 0
             for j = 1:ks.ps.ny, i = 1:ks.ps.nx
