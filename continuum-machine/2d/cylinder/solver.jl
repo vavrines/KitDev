@@ -182,7 +182,7 @@ end
 ctr, a1face, a2face = init_fvm(ks, ks.ps)
 cd(@__DIR__)
 @load "restart.jld2" ctr
-@load "../2d/nn.jld2" nn
+@load "../nn.jld2" nn
 
 begin
     sol = zeros(ks.ps.nr, ks.ps.nθ, 4)
@@ -201,14 +201,52 @@ end
 # detector
 rmap = zeros(ks.pSpace.nr, ks.pSpace.nθ)
 for j = 1:ks.pSpace.nθ
-    for i = 1:ks.pSpace.nr
+    for i = 2:ks.pSpace.nr
         w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
         sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
         gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
         prim = conserve_prim(w, ks.gas.γ)
         tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
-        regime = nn([w; gra; tau]) |> onecold
+        #regime = nn([w; gra; tau]) |> onecold
+        regime = nn([w; gra; 8e-2]) |> onecold
         rmap[i, j] = regime
+    end
+end
+
+rmap = zeros(ks.pSpace.nr, ks.pSpace.nθ)
+for j = 1:ks.pSpace.nθ
+    rmap[1, j] = 2
+
+    for i = 2:ks.pSpace.nr
+        dx1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.x[i+1, j] - ks.ps.x[i-1, j])
+        dy1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.y[i+1, j] - ks.ps.y[i-1, j])
+        dx2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.x[i, j+1] - ks.ps.x[i, j-1])
+        dy2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.y[i, j+1] - ks.ps.y[i, j-1])
+        
+        cs = function(dx1, dx2)
+            if abs(dx1[1]) > abs(dx2[1])
+                return dx1
+            else
+                return dx2
+            end
+        end
+        
+        swx = cs(dx1, dx2)
+        swy = cs(dy1, dy2)
+
+        prim = ctr[i, j].prim
+        Mu, Mv, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
+        a = pdf_slope(prim, swx, ks.gas.K)
+        b = pdf_slope(prim, swy, ks.gas.K)
+        sw = -prim[1] .* (moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+ moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1))
+        A = pdf_slope(prim, sw, ks.gas.K)
+        #tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+        tau = vhs_collision_time(prim, 0.001, ks.gas.ω)
+        
+        fr = chapman_enskog(ks.vs.u, ks.vs.v, prim, a, b, A, tau)
+        L = norm((ctr[i, j].h .- fr) ./ prim[1])
+
+        rmap[i, j] = ifelse(L <= 0.01, 1, 2)
     end
 end
 
