@@ -42,7 +42,7 @@ end
 ctr, a1face, a2face = init_fvm(ks, ks.ps)
 cd(@__DIR__)
 include("../tools.jl")
-#@load "restart.jld2" ctr
+@load "kn3.jld2" ctr
 
 t = 0.0
 dt = timestep(ks, ctr, 0.0)
@@ -98,5 +98,20 @@ begin
     )
 end
 
-cd(@__DIR__)
-@save "kn3.jld2" ctr
+#cd(@__DIR__)
+#@save "kn3.jld2" ks ctr
+
+for j = 1:ks.ps.nθ, i = 2:ks.ps.nr
+    swx1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.x[i+1, j] - ks.ps.x[i-1, j])
+    swy1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.y[i+1, j] - ks.ps.y[i-1, j])
+    swx2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.x[i, j+1] - ks.ps.x[i, j-1])
+    swy2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.y[i, j+1] - ks.ps.y[i, j-1])
+    swx = (swx1 + swx2) ./ 2
+    swy = (swy1 + swy2) ./ 2
+
+    x, y = regime_data(ks, ctr[i, j].w, ctr[i, j].prim, swx, swy, ctr[i, j].h)
+    X = hcat(X, x)
+    Y = hcat(Y, y)
+end
+
+@save "kn3_aux.jld2" X Y

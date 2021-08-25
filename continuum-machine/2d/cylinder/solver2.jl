@@ -6,11 +6,6 @@ pyplot()
 cd(@__DIR__)
 include("tools.jl")
 
-mutable struct CellInfo
-    regime::String
-    ispdf::Bool
-end
-
 begin
     set = Setup(
         case = "cylinder",
