@@ -1,8 +1,30 @@
-using KitBase, Plots, JLD2
-using KitBase.ProgressMeter: @showprogress
-pyplot()
+mutable struct CellInfo
+    regime::String
+    ispdf::Bool
+end
 
-function rcnew!(
+function recon_pdf(ks, prim, swx, swy)
+    Mu, Mv, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
+    a = pdf_slope(prim, swx, ks.gas.K)
+    b = pdf_slope(prim, swy, ks.gas.K)
+    sw = -prim[1] .* (moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+ moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1))
+    A = pdf_slope(prim, sw, ks.gas.K)
+    tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+
+    return chapman_enskog(ks.vs.u, ks.vs.v, prim, a, b, A, tau)
+end
+
+function judge_regime(f, fr, prim)
+    L = norm((f .- fr) ./ prim[1])
+    return ifelse(L <= 0.005, 1, 2)
+end
+
+function judge_regime(ks, f, prim, swx, swy)
+    fr = recon_pdf(ks, prim, swx, swy)
+    return judge_regime(f, fr, prim)
+end
+
+function rc!(
     KS::X,
     ctr::Y,
 ) where {X<:AbstractSolverSet,Y<:AbstractArray{ControlVolume2D2F,2}}
@@ -143,78 +165,3 @@ function rcnew!(
     end
 
 end
-
-begin
-    set = Setup(
-        case = "cylinder",
-        space = "2d2f2v",
-        boundary = ["maxwell", "extra", "mirror", "mirror"],
-        limiter = "minmod",
-        cfl = 0.5,
-        maxTime = 10.0, # time
-    )
-    ps = CSpace2D(1.0, 6.0, 30, 0.0, π, 50, 1, 1)
-    vs = VSpace2D(-10.0, 10.0, 48, -10.0, 10.0, 48)
-    gas = Gas(Kn = 5e-2, Ma = 5.0, K = 1.0)
-    
-    prim0 = [1.0, 0.0, 0.0, 1.0]
-    prim1 = [1.0, gas.Ma * sound_speed(1.0, gas.γ), 0.0, 1.0]
-    fw = (args...) -> prim_conserve(prim1, gas.γ)
-    ff = function(args...)
-        prim = conserve_prim(fw(args...), gas.γ)
-        h = maxwellian(vs.u, vs.v, prim)
-        b = h .* gas.K / 2 / prim[end]
-        return h, b
-    end
-    bc = function(x, y)
-        if abs(x^2 + y^2 - 1) < 1e-3
-            return prim0
-        else
-            return prim1
-        end
-    end
-    ib = IB2F(fw, ff, bc)
-
-    ks = SolverSet(set, ps, vs, gas, ib)
-end
-
-ctr, a1face, a2face = init_fvm(ks, ks.ps)
-cd(@__DIR__)
-#@load "restart.jld2" ctr
-
-t = 0.0
-dt = timestep(ks, ctr, 0.0)
-nt = ks.set.maxTime ÷ dt |> Int
-@showprogress for iter = 1:100#nt
-    #reconstruct!(ks, ctr)
-    rcnew!(ks, ctr)
-    evolve!(ks, ctr, a1face, a2face, dt)
-    update!(ks, ctr, a1face, a2face, dt, zeros(4))
-
-    for j = ks.ps.nθ÷2+1:ks.ps.nθ
-        ctr[ks.ps.nr+1, j].w .= ks.ib.fw(6, 0)
-        ctr[ks.ps.nr+1, j].prim .= conserve_prim(ctr[ks.ps.nr+1, j].w, ks.gas.γ)
-        ctr[ks.ps.nr+1, j].sw .= 0.0
-        ctr[ks.ps.nr+1, j].h .= maxwellian(ks.vs.u, ks.vs.v, ctr[ks.ps.nr+1, j].prim)
-        ctr[ks.ps.nr+1, j].b .= ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
-    end
-
-    global t += dt
-end
-
-begin
-    sol = zeros(ks.ps.nr, ks.ps.nθ, 4)
-    for i in axes(sol, 1), j in axes(sol, 2)
-        sol[i, j, :] .= ctr[i, j].prim
-        sol[i, j, end] = 1 / sol[i, j, end]
-    end
-    contourf(
-        ps.x[1:ks.ps.nr, 1:ks.ps.nθ],
-        ps.y[1:ks.ps.nr, 1:ks.ps.nθ],
-        sol[:, :, 4],
-        ratio = 1,
-    )
-end
-
-#cd(@__DIR__)
-#@save "restart.jld2" ctr

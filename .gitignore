@@ -3,3 +3,5 @@ continuum-machine/2d/data.jld2
 FR/paper/sod/accuracy/kn3_ref.jld2
 FR/paper/sod/accuracy/kn2_ref.jld2
 continuum-machine/2d/cylinder/restart.jld2
+continuum-machine/2d/cylinder/*.jld2
+continuum-machine/2d/cylinder/log
