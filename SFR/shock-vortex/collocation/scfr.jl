@@ -61,7 +61,6 @@ function dudt!(du, u, p, t)
 
     @inbounds @threads for l = 1:nsp
         for k = 1:nsp, j in axes(f, 2), i in axes(f, 1)
-            fRan = zeros(4, nq, 2)
             for n = 1:nq
                 fg, gg = euler_flux(u[i, j, k, l, :, n], γ)
                 for s = 1:4
@@ -98,9 +97,7 @@ function dudt!(du, u, p, t)
                 uR = @view u_face[i, j, 4, k, :, l]
                 flux_hll!(tmp, uL, uR, γ, 1.0)
             end
-            for s = 1:4
-                fx_interaction[i, j, k, s, :] .= fw[s, :]
-            end
+            fx_interaction[i, j, k, :, :] .= fw
         end
     end
     @inbounds @threads for k = 1:nsp
@@ -113,9 +110,7 @@ function dudt!(du, u, p, t)
                 flux_hll!(tmp, uL, uR, γ, 1.0)
                 tmp .= global_frame(tmp, 0.0, 1.0)
             end
-            for s = 1:4
-                fy_interaction[i, j, k, s, :] .= fw[s, :]
-            end
+            fy_interaction[i, j, k, :, :] .= fw
         end
     end
 
@@ -164,10 +159,7 @@ nt = tspan[2] ÷ dt |> Int
 
 # initial condition
 u0 = OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg+1, ps.deg+1, 4, uq.nq)
-for i in axes(u0, 1), j in axes(u0, 2), k in axes(u0, 3), l in axes(u0, 4)
-    primRan = zeros(4, uq.nq)
-    Ma = uq.pceSample .* ks.gas.Ma
-
+begin
     gam = gas.γ
     MaL = gas.Ma
     MaR = sqrt((MaL^2 * (gam - 1.0) + 2.0) / (2.0 * gam * MaL^2 - (gam - 1.0)))
@@ -182,46 +174,50 @@ for i in axes(u0, 1), j in axes(u0, 2), k in axes(u0, 3), l in axes(u0, 4)
         t1[end] / ratioT,
     ]
 
-    for n = 1:uq.nq
-        if ps.x[i, j] <= ps.x1 * 0.25
-            primRan[:, n] .= [t2[1], t1[2] - t2[2], 0.0, t2[end]]
-        else
-            primRan[:, n] .= [t1[1], 0.0, 0.0, t1[end]]
+    for i in axes(u0, 1), j in axes(u0, 2), k in axes(u0, 3), l in axes(u0, 4)
+        primRan = zeros(4, uq.nq)
+        Ma = uq.pceSample .* ks.gas.Ma
 
-            tmp = @view primRan[:, n]
-            vortex_ic!(tmp, ks.gas.γ, ps.xpg[i, j, k, l, 1], ps.xpg[i, j, k, l, 2])
+        for n = 1:uq.nq
+            if ps.x[i, j] <= ps.x1 * 0.25
+                primRan[:, n] .= [t2[1], t1[2] - t2[2], 0.0, t2[end]]
+            else
+                primRan[:, n] .= [t1[1], 0.0, 0.0, t1[end]]
+
+                tmp = @view primRan[:, n]
+                vortex_ic!(tmp, ks.gas.γ, ps.xpg[i, j, k, l, 1], ps.xpg[i, j, k, l, 2])
+            end
         end
-    end
 
-    uRan = uq_prim_conserve(primRan, ks.gas.γ, uq)
-    for m = 1:4
-        u0[i, j, k, l, m, :] .= uRan[m, :]
+        uRan = uq_prim_conserve(primRan, ks.gas.γ, uq)
+        for m = 1:4
+            u0[i, j, k, l, m, :] .= uRan[m, :]
+        end
     end
 end
 
 prob = ODEProblem(dudt!, u0, tspan, p)
 itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
 
-@showprogress for iter = 1:100#nt
+@showprogress for iter = 1:nt
     step!(itg)
 
     # filter
-    for i in axes(itg.u, 1), j in axes(itg.u, 2)
-        ũ = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, 1, :], 9, :)
-        su = maximum([sum(ũ[3:end, j].^2) / sum(ũ[:, j].^2) for j = 1:uq.nq])
-        isShock = shock_detector(log10(su), ps.deg)
+    @inbounds @threads for j in axes(itg.u, 2)
+        for i in axes(itg.u, 1)
+            #ũ = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, 1, :], 9, :)
+            #su = maximum([sum(ũ[3:end, j].^2) / sum(ũ[:, j].^2) for j = 1:uq.nq])
+            #isShock = shock_detector(log10(su), ps.deg)
 
-        if isShock
-            #λ = sqrt(su) * 2 #2e-5
-            λ1 = 5e-5
-            #λ2 = 1e-12#5
-            for s = 1:4, ss = 1:uq.nq
-                û = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, s, ss], 9)
-                
-                FR.modal_filter!(û, λ1; filter = :l2)
-                
-                uNode = reshape(ps.V * û, 3, 3)
-                itg.u[i, j, :, :, s, ss] .= uNode
+            if true#isShock
+                #λ = sqrt(su) * 2 #2e-5
+                λ1 = 5e-5
+                #λ2 = 1e-12#5
+                for s = 1:4, ss = 1:uq.nq
+                    û = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, s, ss], 9)
+                    FR.modal_filter!(û, λ1; filter = :l2)
+                    itg.u[i, j, :, :, s, ss] .= reshape(ps.V * û, 3, 3)
+                end
             end
         end
     end
@@ -231,12 +227,12 @@ itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
     itg.u[:, ps.ny+1, :, :, :, :] .= itg.u[:, ps.ny, :, :, :, :]
     itg.u[ps.nx+1, :, :, :, :, :] .= itg.u[ps.nx, :, :, :, :, :]
 
-    #=if iter % 100 == 0
+    if iter % 100 == 0
         t = round(itg.t, digits=3)
         filename = "iter_" * string(t) * ".jld2"
         u = itg.u
         @save filename u
-    end=#
+    end
 end
 
 begin
@@ -272,8 +268,8 @@ begin
     #plot!(x[:, 1], sol[:, end÷2+1, 1])
 end
 
-contourf(x[:, 1], y[1, :], sol[:, :, 4, 1]', aspect_ratio=1, legend=true)
-plot(x[:, 1], sol[:, end÷2+1, 1, 1])
+#contourf(x[:, 1], y[1, :], sol[:, :, 4, 1]', aspect_ratio=1, legend=true)
+#plot(x[:, 1], sol[:, end÷2+1, 1, 1])
 
 u = itg.u
 @save "sol.jld2" x sol u

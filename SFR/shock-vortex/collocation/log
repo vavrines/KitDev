@@ -1,0 +1,5 @@
+[ Info: Kinetic will run with 1 processors and 6 threads
+[ Info: Kinetic will run with CUDA
+[ Info: 1: NVIDIA GeForce RTX 3070
+[ Info: Scalar operation is disabled in CUDA
+Progress:   0%|▏                                        |  ETA: 2:13:08[KProgress:   0%|▏                                        |  ETA: 1:53:47[KProgress:   0%|▏                                        |  ETA: 1:43:49[KProgress:   1%|▎                                        |  ETA: 1:38:01[KProgress:   1%|▎                                        |  ETA: 1:32:48[KProgress:   1%|▎                                        |  ETA: 1:30:08[KProgress:   1%|▍                                        |  ETA: 1:27:01[KProgress:   1%|▍                                        |  ETA: 1:25:30[KProgress:   1%|▍                                        |  ETA: 1:23:29[K

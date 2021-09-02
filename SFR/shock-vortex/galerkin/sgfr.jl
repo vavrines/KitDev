@@ -45,8 +45,8 @@ end
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 
 cd(@__DIR__)
-include("ic.jl")
-include("../filter.jl")
+include("../ic.jl")
+include("../../filter.jl")
 
 function dudt!(du, u, p, t)
     du .= 0.0
@@ -176,28 +176,41 @@ nt = tspan[2] ÷ dt |> Int
 
 # initial condition
 u0 = OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg+1, ps.deg+1, 4, uq.nm+1)
-for i in axes(u0, 1), j in axes(u0, 2), k in axes(u0, 3), l in axes(u0, 4)
-    primRan = zeros(4, uq.nq)
-    Ma = uq.pceSample .* ks.gas.Ma
+begin
+    gam = gas.γ
+    MaL = gas.Ma
+    MaR = sqrt((MaL^2 * (gam - 1.0) + 2.0) / (2.0 * gam * MaL^2 - (gam - 1.0)))
+    ratioT =
+        (1.0 + (gam - 1.0) / 2.0 * MaL^2) * (2.0 * gam / (gam - 1.0) * MaL^2 - 1.0) /
+        (MaL^2 * (2.0 * gam / (gam - 1.0) + (gam - 1.0) / 2.0))
+    t1 = [1.0, MaL * sqrt(gam / 2.0), 0.0, 1.0]
+    t2 = [
+        t1[1] * (gam + 1.0) * MaL^2 / ((gam - 1.0) * MaL^2 + 2.0),
+        MaR * sqrt(gam / 2.0) * sqrt(ratioT),
+        0.0,
+        t1[end] / ratioT,
+    ]
 
-    for n = 1:uq.nq
-        t1 = ib_rh(Ma[n], ks.gas.γ, rand(3))[2]
-        t2 = ib_rh(Ma[n], ks.gas.γ, rand(3))[6]
+    for i in axes(u0, 1), j in axes(u0, 2), k in axes(u0, 3), l in axes(u0, 4)
+        primRan = zeros(4, uq.nq)
+        Ma = uq.pceSample .* ks.gas.Ma
 
-        if ps.x[i, j] <= ps.x1 * 0.25
-            primRan[:, n] .= [t2[1], t1[2] - t2[2], 0.0, t2[3]]
-        else
-            primRan[:, n] .= [t1[1], 0.0, 0.0, t1[3]]
+        for n = 1:uq.nq
+            if ps.x[i, j] <= ps.x1 * 0.25
+                primRan[:, n] .= [t2[1], t1[2] - t2[2], 0.0, t2[end]]
+            else
+                primRan[:, n] .= [t1[1], 0.0, 0.0, t1[end]]
 
-            tmp = @view primRan[:, n]
-            vortex_ic!(tmp, ks.gas.γ, ps.xpg[i, j, k, l, 1], ps.xpg[i, j, k, l, 2])
+                tmp = @view primRan[:, n]
+                vortex_ic!(tmp, ks.gas.γ, ps.xpg[i, j, k, l, 1], ps.xpg[i, j, k, l, 2])
+            end
         end
-    end
 
-    uRan = uq_prim_conserve(primRan, ks.gas.γ, uq)
+        uRan = uq_prim_conserve(primRan, ks.gas.γ, uq)
 
-    for m = 1:4
-        u0[i, j, k, l, m, :] .= ran_chaos(uRan[m, :], uq)
+        for m = 1:4
+            u0[i, j, k, l, m, :] .= ran_chaos(uRan[m, :], uq)
+        end
     end
 end
 

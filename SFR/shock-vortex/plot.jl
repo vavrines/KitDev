@@ -58,7 +58,7 @@ for  i in axes(sol_ref, 1), j in axes(sol_ref, 2), k in axes(sol_ref, 3)
     sol_ref[i, j, k, 2] = std(uChaos, uq.op)
 end
 
-@load "sol.jld2" x u#sol
+@load "galerkin/sol.jld2" x u#sol
 begin
     sol = zeros(size(x)..., 4, 2)
     for i = 1:ps.nx, j = 1:ps.ny
@@ -80,13 +80,46 @@ begin
     end
 end
 
+@load "collocation/sol.jld2" x u#sol
+begin
+    sol1 = zeros(size(x)..., 4, 2)
+    for i = 1:ps.nx, j = 1:ps.ny
+        idx0 = (i - 1) * (ps.deg+1)
+        idy0 = (j - 1) * (ps.deg+1)
+
+        for k = 1:ps.deg+1, l = 1:ps.deg+1
+            idx = idx0 + k
+            idy = idy0 + l
+
+            uRan = uq_conserve_prim(u[i, j, k, l, :, :], ks.gas.γ, uq)
+            uChaos = zeros(4, uq.nm+1)
+            for ii = 1:4
+                uChaos[ii, :] .= ran_chaos(uRan[ii, :], uq)
+            end
+            uChaos[4, :] .= lambda_tchaos(Array(uChaos[4, :]), 1.0, uq)
+
+            for s = 1:4
+                sol1[idx, idy, s, 1] = mean(uChaos[s, :], uq.op)
+                sol1[idx, idy, s, 2] = std(uChaos[s, :], uq.op)
+            end
+        end
+    end
+end
+
 plot(
     x[:, 1],
     0.5 .* (sol[:, end÷2, 1, 1] .+ sol[:, end÷2+1, 1, 1]),
-    lw = 2,
-    label = "FR",
+    lw = 1.5,
+    label = "Current",
     xlabel = "x",
     ylabel = "density",
+)
+scatter!(
+    x[1:4:end, 1],
+    0.5 .* (sol1[1:4:end, end÷2, 1, 1] .+ sol1[1:4:end, end÷2+1, 1, 1]),
+    lw = 2,
+    label = "Collocation",
+    alpha = 0.75,
 )
 plot!(
     x_ref,
