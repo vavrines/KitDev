@@ -1,4 +1,4 @@
-using Plots, JLD2, Langevin
+using Plots, JLD2, Langevin, FluxReconstruction
 
 begin
     set = Setup(
@@ -41,21 +41,46 @@ end
 
 cd(@__DIR__)
 
-fvm = []
-for i = 1:9
-    filename = "fvm/fvm" * string(i) * ".jld2"
-    @load filename x sol
-    push!(fvm, sol)
+begin
+    @load "fvm-fine/fvm1.jld2" x
+    xc = deepcopy(x)
+
+    fvm = []
+    for i = 1:9
+        filename = "fvm-fine/fvm" * string(i) * ".jld2"
+        @load filename x sol
+        push!(fvm, sol)
+    end
+
+    solc = zeros(size(fvm[1])..., 2)
+    for i in axes(solc, 1), j in axes(solc, 2), k in axes(solc, 3)
+        uRan = [fvm[idx][i, j, k] for idx = 1:9]
+        uChaos = ran_chaos(uRan, uq)
+
+        solc[i, j, k, 1] = mean(uChaos, uq.op)
+        solc[i, j, k, 2] = std(uChaos, uq.op)
+    end
 end
-x_ref = deepcopy(x)
 
-sol_ref = zeros(size(fvm[1])..., 2)
-for  i in axes(sol_ref, 1), j in axes(sol_ref, 2), k in axes(sol_ref, 3)
-    uRan = [fvm[idx][i, j, k] for idx = 1:9]
-    uChaos = ran_chaos(uRan, uq)
+begin
+    @load "fvm/fvm1.jld2" x
+    xr = deepcopy(x)
 
-    sol_ref[i, j, k, 1] = mean(uChaos, uq.op)
-    sol_ref[i, j, k, 2] = std(uChaos, uq.op)
+    fvm = []
+    for i = 1:9
+        filename = "fvm/fvm" * string(i) * ".jld2"
+        @load filename x sol
+        push!(fvm, sol)
+    end
+
+    solr = zeros(size(fvm[1])..., 2)
+    for i in axes(solr, 1), j in axes(solr, 2), k in axes(solr, 3)
+        uRan = [fvm[idx][i, j, k] for idx = 1:9]
+        uChaos = ran_chaos(uRan, uq)
+
+        solr[i, j, k, 1] = mean(uChaos, uq.op)
+        solr[i, j, k, 2] = std(uChaos, uq.op)
+    end
 end
 
 @load "galerkin/sol.jld2" x u#sol
@@ -80,32 +105,7 @@ begin
     end
 end
 
-@load "collocation/sol.jld2" x u#sol
-begin
-    sol1 = zeros(size(x)..., 4, 2)
-    for i = 1:ps.nx, j = 1:ps.ny
-        idx0 = (i - 1) * (ps.deg+1)
-        idy0 = (j - 1) * (ps.deg+1)
-
-        for k = 1:ps.deg+1, l = 1:ps.deg+1
-            idx = idx0 + k
-            idy = idy0 + l
-
-            uRan = uq_conserve_prim(u[i, j, k, l, :, :], ks.gas.γ, uq)
-            uChaos = zeros(4, uq.nm+1)
-            for ii = 1:4
-                uChaos[ii, :] .= ran_chaos(uRan[ii, :], uq)
-            end
-            uChaos[4, :] .= lambda_tchaos(Array(uChaos[4, :]), 1.0, uq)
-
-            for s = 1:4
-                sol1[idx, idy, s, 1] = mean(uChaos[s, :], uq.op)
-                sol1[idx, idy, s, 2] = std(uChaos[s, :], uq.op)
-            end
-        end
-    end
-end
-
+# density
 plot(
     x[:, 1],
     0.5 .* (sol[:, end÷2, 1, 1] .+ sol[:, end÷2+1, 1, 1]),
@@ -115,16 +115,15 @@ plot(
     ylabel = "density",
 )
 scatter!(
-    x[1:4:end, 1],
-    0.5 .* (sol1[1:4:end, end÷2, 1, 1] .+ sol1[1:4:end, end÷2+1, 1, 1]),
-    lw = 2,
+    xc[1:2:end, 1],
+    0.5 .* (solc[1:2:end, end÷2, 1, 1] .+ solc[1:2:end, end÷2+1, 1, 1]),
     label = "Collocation",
-    alpha = 0.75,
+    alpha = 0.8,
 )
 plot!(
-    x_ref,
-    0.5 .* (sol_ref[:, end÷2, 1, 1] .+ sol_ref[:, end÷2+1, 1, 1]),
-    lw = 2,
+    xr,
+    0.5 .* (solr[:, end÷2, 1, 1] .+ solr[:, end÷2+1, 1, 1]),
+    lw = 1.5,
     label = "FVM",
     line = :dash,
     color = :gray27,
@@ -134,33 +133,46 @@ savefig("sv_t1_n_mean.pdf")
 plot(
     x[:, 1],
     0.5 .* (sol[:, end÷2, 1, 2] .+ sol[:, end÷2+1, 1, 2]),
-    lw = 2,
-    label = "FR",
+    lw = 1.5,
+    label = "Current",
     xlabel = "x",
     ylabel = "density",
 )
+scatter!(
+    xc[1:2:end, 1],
+    0.5 .* (solc[1:2:end, end÷2, 1, 2] .+ solc[1:2:end, end÷2+1, 1, 2]),
+    label = "Collocation",
+    alpha = 0.8,
+)
 plot!(
-    x_ref,
-    0.5 .* (sol_ref[:, end÷2, 1, 2] .+ sol_ref[:, end÷2+1, 1, 2]),
-    lw = 2,
+    xr,
+    0.5 .* (solr[:, end÷2, 1, 2] .+ solr[:, end÷2+1, 1, 2]),
+    lw = 1.5,
     label = "FVM",
     line = :dash,
     color = :gray27,
 )
 savefig("sv_t1_n_std.pdf")
 
+# temperature
 plot(
     x[:, 1],
     0.5 .* (sol[:, end÷2, 4, 1] .+ sol[:, end÷2+1, 4, 1]),
-    lw = 2,
-    label = "FR",
+    lw = 1.5,
+    label = "Current",
     xlabel = "x",
     ylabel = "temperature",
 )
+scatter!(
+    xc[1:2:end, 1],
+    0.5 .* (solc[1:2:end, end÷2, 4, 1] .+ solc[1:2:end, end÷2+1, 4, 1]),
+    label = "Collocation",
+    alpha = 0.8,
+)
 plot!(
-    x_ref,
-    0.5 .* (sol_ref[:, end÷2, 4, 1] .+ sol_ref[:, end÷2+1, 4, 1]),
-    lw = 2,
+    xr,
+    0.5 .* (solr[:, end÷2, 4, 1] .+ solr[:, end÷2+1, 4, 1]),
+    lw = 1.5,
     label = "FVM",
     line = :dash,
     color = :gray27,
@@ -170,15 +182,21 @@ savefig("sv_t1_t_mean.pdf")
 plot(
     x[:, 1],
     0.5 .* (sol[:, end÷2, 4, 2] .+ sol[:, end÷2+1, 4, 2]),
-    lw = 2,
-    label = "FR",
+    lw = 1.5,
+    label = "Current",
     xlabel = "x",
     ylabel = "temperature",
 )
+scatter!(
+    xc[1:2:end, 1],
+    0.5 .* (solc[1:2:end, end÷2, 4, 2] .+ solc[1:2:end, end÷2+1, 4, 2]),
+    label = "Collocation",
+    alpha = 0.8,
+)
 plot!(
-    x_ref,
-    0.5 .* (sol_ref[:, end÷2, 4, 2] .+ sol_ref[:, end÷2+1, 4, 2]),
-    lw = 2,
+    xr,
+    0.5 .* (solr[:, end÷2, 4, 2] .+ solr[:, end÷2+1, 4, 2]),
+    lw = 1.5,
     label = "FVM",
     line = :dash,
     color = :gray27,

@@ -12,10 +12,10 @@ begin
         3, # order of accuracy
         "vanleer", # limiter
         "extra",
-        0.1, # cfl
+        0.5, # cfl
         1.0, # time
     )
-    ps = PSpace2D(0.0, 2.0, 100, 0.0, 1.0, 50, 1, 1)
+    ps = PSpace2D(0.0, 2.0, 150, 0.0, 1.0, 75, 1, 1)
     vs = VSpace2D(-2.0, 2.0, 5, -2.0, 2.0, 5)
     gas = Gas(
         1e-6,
@@ -35,14 +35,27 @@ ctr = OffsetArray{ControlVolume2D}(undef, axes(ks.ps.x, 1), axes(ks.ps.y, 2))
 a1face = Array{Interface2D}(undef, ks.ps.nx + 1, ks.ps.ny)
 a2face = Array{Interface2D}(undef, ks.ps.nx, ks.ps.ny + 1)
 
-for j in axes(ctr, 2), i in axes(ctr, 1)
-    t1 = ib_rh(ks.gas.Ma, ks.gas.γ, rand(3))[2]
-    t2 = ib_rh(ks.gas.Ma, ks.gas.γ, rand(3))[6]
+begin
+    gam = gas.γ
+    MaL = gas.Ma
+    MaR = sqrt((MaL^2 * (gam - 1.0) + 2.0) / (2.0 * gam * MaL^2 - (gam - 1.0)))
+    ratioT =
+        (1.0 + (gam - 1.0) / 2.0 * MaL^2) * (2.0 * gam / (gam - 1.0) * MaL^2 - 1.0) /
+        (MaL^2 * (2.0 * gam / (gam - 1.0) + (gam - 1.0) / 2.0))
+    t1 = [1.0, MaL * sqrt(gam / 2.0), 0.0, 1.0]
+    t2 = [
+        t1[1] * (gam + 1.0) * MaL^2 / ((gam - 1.0) * MaL^2 + 2.0),
+        MaR * sqrt(gam / 2.0) * sqrt(ratioT),
+        0.0,
+        t1[end] / ratioT,
+    ]
+end
 
+for j in axes(ctr, 2), i in axes(ctr, 1)
     if ps.x[i, j] <= ps.x1*0.25
-        prim = [t2[1], t1[2] - t2[2], 0.0, t2[3]]
+        prim = [t2[1], t1[2] - t2[2], 0.0, t2[end]]
     else
-        prim = [t1[1], 0.0, 0.0, t1[3]]
+        prim = [t1[1], 0.0, 0.0, t1[end]]
 
         s = prim[1]^(1-ks.gas.γ) / (2 * prim[end])
 
@@ -79,10 +92,6 @@ for j in axes(ctr, 2), i in axes(ctr, 1)
     w = prim_conserve(prim, ks.gas.γ)
 
     ctr[i, j] = ControlVolume2D(
-        ks.ps.x[i, j],
-        ks.ps.y[i, j],
-        ks.ps.dx[i, j],
-        ks.ps.dy[i, j],
         w,
         prim,
     )
@@ -102,13 +111,13 @@ end
 
 iter = 0
 t = 0.0
-dt = timestep(ks, ctr, t)
+dt = KitBase.timestep(ks, ctr, t)
 nt = Int(floor(ks.set.maxTime / dt)) + 1
 res = zero(4)
 
 @showprogress for iter = 1:nt
-    reconstruct!(ks, ctr)
-    evolve!(ks, ctr, a1face, a2face, dt)
+    KitBase.reconstruct!(ks, ctr)
+    KitBase.evolve!(ks, ctr, a1face, a2face, dt)
     #update!(ks, ctr, a1face, a2face, dt, res)
 
     @inbounds for j = 1:ks.ps.ny
@@ -121,7 +130,7 @@ res = zero(4)
                 a2face[i, j].fw,
                 a2face[i, j+1].fw,
                 ks.gas.γ,
-                ctr[i, j].dx * ctr[i, j].dy,
+                ks.ps.dx[i, j] * ks.ps.dy[i, j],
                 zeros(4),
                 zeros(4),
             )
@@ -149,7 +158,7 @@ begin
     plot(x, 0.5 .* (sol[:, end÷2, 1] + sol[:, end÷2+1, 1]))
 end
 
-plot_contour(ks, ctr)
+#plot_contour(ks, ctr)
 
 using JLD2
 cd(@__DIR__)
