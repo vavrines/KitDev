@@ -2,6 +2,20 @@ using Kinetic, Plots, LinearAlgebra, JLD2, Flux
 using Flux: onecold
 using ProgressMeter: @showprogress
 
+function regime_data(ks, w, prim, sw, f)
+    Mu, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
+    a = pdf_slope(prim, sw, ks.gas.K)
+    sw = -prim[1] .* moments_conserve_slope(a, Mu, Mxi, 1)
+    A = pdf_slope(prim, sw, ks.gas.K)
+    tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
+    fr = chapman_enskog(ks.vs.u, prim, a, A, tau)
+    L = norm((f .- fr) ./ prim[1])
+
+    x = [w; sw; tau]
+    y = ifelse(L <= 0.005, [1.0, 0.0], [0.0, 1.0])
+    return x, y
+end
+
 ###
 # initialize kinetic solver
 ###
@@ -61,8 +75,8 @@ end
 t = 0.0
 dt = timestep(ks, ctr, t)
 nt = Int(ks.set.maxTime ÷ dt) + 1
-res = zero(ks.ib.wL)
-for iter = 1:20#nt
+res = zero(ctr[1].w)
+for iter = 1:nt
     println("iteration: $iter")
 
     reconstruct!(ks, ctr)
@@ -130,3 +144,18 @@ for i = 1:ks.ps.nx
 end
 
 plot!(ks.ps.x[1:ks.ps.nx], regime)
+
+regime1 = zeros(Int, ks.ps.nx)
+KnGLL = zeros(ks.ps.nx)
+for i = 1:ks.ps.nx
+    sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
+    L = abs(ctr[i].w[1] / sw[1])
+    ℓ = (1/ctr[i].prim[end])^ks.gas.ω / ctr[i].prim[1] * sqrt(ctr[i].prim[end]) * ks.gas.Kn
+
+    KnGLL[i] = ℓ / L
+    regime1[i] = ifelse(KnGLL[i] >= 0.05, 2, 1)
+end
+
+plot!(ks.ps.x[1:ks.ps.nx], regime1)
+
+plot(ks.ps.x[1:ks.ps.nx], KnGLL)
