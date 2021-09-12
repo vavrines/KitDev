@@ -26,14 +26,21 @@ begin
     end
 end
 
+
+
+
+
+
+
+
 idx = ks.ps.nx÷5*3+1:ks.ps.nx÷5*4
 
 plot(ks.ps.x[idx], sols[1][idx, 1], lw=1.5, label="NN", xlabel="x", ylabel="ρ")
-plot!(ks.ps.x[idx], sols[2][idx, 1], lw=1.5, label="KnGL")
+plot!(ks.ps.x[idx], sols[2][idx, 1], lw=1.5, label="KnGLL")
 plot!(ks.ps.x[idx], sols[3][idx, 1], lw=1.5, label="kinetic")
 plot!(ks.ps.x[idx], sols[4][idx, 1], lw=1.5, label="NS")
 
 plot(ks.ps.x[idx], sols[1][idx, 3], lw=1.5, label="NN", xlabel="x", ylabel="T")
-plot!(ks.ps.x[idx], sols[2][idx, 3], lw=1.5, label="KnGL")
+plot!(ks.ps.x[idx], sols[2][idx, 3], lw=1.5, label="KnGLL")
 plot!(ks.ps.x[idx], sols[3][idx, 3], lw=1.5, label="kinetic")
 plot!(ks.ps.x[idx], sols[4][idx, 3], lw=1.5, label="NS")
