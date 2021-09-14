@@ -19,7 +19,7 @@ end
 set = Setup(case = "sod", space = "1d2f1v", maxTime = 0.15)
 ps = PSpace1D(0.0, 1.0, 200, 1)
 vs = VSpace1D(-5.0, 5.0, 100)
-gas = Gas(Kn = 1e-4)
+gas = Gas(Kn = 1e-2)
 ib = IB2F(ib_sod(set, ps, vs, gas)...)
 ks = SolverSet(set, ps, vs, gas, ib)
 ctr, face = init_fvm(ks, ks.ps)

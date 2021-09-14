@@ -3,6 +3,7 @@ using Flux: onecold
 
 cd(@__DIR__)
 
+# Kn = 1e-4
 ctrs = []
 begin
     @load "kn=1e-4/nn.jld2" ks ctr
@@ -13,6 +14,33 @@ begin
     push!(ctrs, ctr)
     @load "kn=1e-4/pure_ns.jld2" ks ctr
     push!(ctrs, ctr)
+end
+
+# Kn = 1e-3
+ctrs = []
+begin
+    @load "kn=1e-3/nn.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-3/kngll.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-3/pure_kinetic.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-3/pure_ns.jld2" ks ctr
+    push!(ctrs, ctr)
+end
+
+# Kn = 1e-2
+ctrs = []
+begin
+    @load "kn=1e-2/nn.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-2/kngll.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-2/pure_kinetic.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-3/pure_ns.jld2" ks ctr
+    push!(ctrs, ctr)
+    @load "kn=1e-2/pure_kinetic.jld2" ks ctr
 end
 
 sols = []
@@ -67,7 +95,8 @@ scatter(ks.ps.x[1:ks.ps.nx], rg_ce, alpha=0.7, label="NN", xlabel="x", ylabel="r
 scatter!(ks.ps.x[1:ks.ps.nx], rg_kn, alpha=0.7, label="KnGLL")
 plot!(ks.ps.x[1:ks.ps.nx], rg_ce, lw=1.5, line=:dot, color=:gray27, label="True", xlabel="x", ylabel="regime")
 
-savefig("kn4_regime.pdf")
+#savefig("kn4_regime.pdf")
+#savefig("kn3_regime.pdf")
 
 function curve(idx, s, lgd=:topright)
     fig = plot(ks.ps.x[idx], sols[1][idx, s], lw=1.5, label="NN", legend=lgd)
@@ -89,13 +118,18 @@ end
 
 idx = 1:ks.ps.nx
 curve(idx, 1)
-savefig("kn4_n.pdf")
+#savefig("kn4_n.pdf")
+#savefig("kn3_n.pdf")
+
 curve(idx, 3)
-savefig("kn4_t.pdf")
+#savefig("kn4_t.pdf")
+#savefig("kn3_t.pdf")
 
 idx = ks.ps.nx÷5*3+1:ks.ps.nx÷5*4
 curve(idx, 1)
-savefig("kn4_n_zoom.pdf")
-curve(idx, 3, :topleft)
-savefig("kn4_t_zoom.pdf")
+#savefig("kn4_n_zoom.pdf")
+#savefig("kn3_n_zoom.pdf")
 
+curve(idx, 3, :topleft)
+#savefig("kn4_t_zoom.pdf")
+#savefig("kn3_t_zoom.pdf")
