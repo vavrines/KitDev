@@ -97,12 +97,13 @@ plot!(ks.ps.x[1:ks.ps.nx], rg_ce, lw=1.5, line=:dot, color=:gray27, label="True"
 
 #savefig("kn4_regime.pdf")
 #savefig("kn3_regime.pdf")
+#savefig("kn2_regime.pdf")
 
-function curve(idx, s, lgd=:topright)
+function curve(idx, s, lgd=:topright; ns=true)
     fig = plot(ks.ps.x[idx], sols[1][idx, s], lw=1.5, label="NN", legend=lgd)
     plot!(fig, ks.ps.x[idx], sols[2][idx, s], lw=1.5, line=:dash, label="KnGLL")
-    plot!(fig, ks.ps.x[idx], sols[3][idx, s], lw=1.5, line=:dashdot, label="Kinetic")
-    plot!(fig, ks.ps.x[idx], sols[4][idx, s], lw=2, line=:dot, color=:gray27, label="NS")
+    plot!(fig, ks.ps.x[idx], sols[3][idx, s], lw=1.5, line=:dashdot, label="Kinetic")    
+    ns && plot!(fig, ks.ps.x[idx], sols[4][idx, s], lw=2, line=:dot, color=:gray27, label="NS")
 
     xlabel!(fig, "x")
     if s == 1
@@ -120,16 +121,24 @@ idx = 1:ks.ps.nx
 curve(idx, 1)
 #savefig("kn4_n.pdf")
 #savefig("kn3_n.pdf")
+#curve(idx, 1; ns=false)
+#savefig("kn2_n.pdf")
 
 curve(idx, 3)
 #savefig("kn4_t.pdf")
 #savefig("kn3_t.pdf")
+#curve(idx, 3; ns=false)
+#savefig("kn2_t.pdf")
 
 idx = ks.ps.nx÷5*3+1:ks.ps.nx÷5*4
 curve(idx, 1)
 #savefig("kn4_n_zoom.pdf")
 #savefig("kn3_n_zoom.pdf")
+#curve(idx, 1; ns=false)
+#savefig("kn2_n_zoom.pdf")
 
 curve(idx, 3, :topleft)
 #savefig("kn4_t_zoom.pdf")
 #savefig("kn3_t_zoom.pdf")
+#curve(idx, 3, :topleft; ns=false)
+#savefig("kn2_t_zoom.pdf")
