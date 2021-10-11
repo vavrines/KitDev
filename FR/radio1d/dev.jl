@@ -3,26 +3,29 @@ using KitBase, FluxReconstruction
 using ProgressMeter: @showprogress
 
 begin
-    deg = 1
+    deg = 2
     nsp = deg + 1
     knudsen = 1.0
 end
+
+ℓ = FR.basis_norm(deg)
 
 set = Setup(
     matter = "radiation",
     case = "inflow",
     space = "1d1f1v",
     boundary = "maxwell",
-    cfl = 0.2,
+    cfl = 0.1,
     maxTime = 0.5,
 )
 ps = FRPSpace1D(0, 1, 50, deg)
-vs = VSpace1D(-1, 1, 28)
+vs = VSpace1D(-1, 1, 48)
 
 δ = heaviside.(vs.u)
 function fb!(ff, f, u, rot = 1)
     δ = heaviside.(u .* rot)
-    fWall = @. 0.1 * δ + f * (1.0 - δ)
+    fWall = @. 0.5 * δ + f * (1.0 - δ)
+    #fWall = 0.1
     @. ff = u * fWall
 
     return nothing
@@ -85,14 +88,14 @@ function mol!(du, u, p, t)
                     rhs[i, j, ppp1] .+
                     (f_interaction[i, j] .- f_face[i, j, 2]) .* dgl[ppp1] .+
                     (f_interaction[i+1, j] .- f_face[i, j, 1]) .* dgr[ppp1]
-                ) .+ (M .- u[i, j, ppp1]) ./ τ
+                ) #.+ (M .- u[i, j, ppp1]) ./ τ
         end
     end
 
     du[ncell, :, :] .= 0.0
 end
 
-u0 = ones(Float64, ps.nx, vs.nu, nsp) .* 1e-4
+u0 = ones(Float64, ps.nx, vs.nu, nsp) .* 1e-3
 tspan = (0.0, set.maxTime)
 dt = set.cfl * minimum(ps.dx) / (vs.u1 + 2)
 nt = floor(tspan[2] / dt) |> Int
@@ -110,8 +113,22 @@ itg = init(
     dt = dt,
 )
 
-@showprogress for iter = 1:nt
+@showprogress for iter = 1:200#nt
     step!(itg)
+
+    for j = 1:vs.nu, i = 1:ps.nx
+        ũ = ps.iV * itg.u[i, j, :]
+        su = ũ[end]^2 / sum(ũ.^2)
+        isShock = shock_detector(log10(su), ps.deg)
+
+        if isShock
+            modal_filter!(ũ, ℓ; filter = :lasso)
+            itg.u[i, j, :] .= ps.V * ũ
+        end
+
+        tmp = @view itg.u[i, j, :]
+        positive_limiter(tmp, ps.wp ./ 2, ps.ll, ps.lr)
+    end
 end
 
 begin
@@ -131,3 +148,4 @@ begin
 end
 
 plot(x[1:end], sol[1:end, 1])
+scatter(x[1:end], sol[1:end, 1])
