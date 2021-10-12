@@ -1,14 +1,14 @@
 using OrdinaryDiffEq, LinearAlgebra, Plots
 using KitBase, FluxReconstruction
+using Base.Threads: @threads
 using ProgressMeter: @showprogress
 
 begin
-    deg = 2
+    deg = 3
     nsp = deg + 1
-    knudsen = 1.0
+    knudsen = 1e0
+    ℓ = FR.basis_norm(deg)
 end
-
-ℓ = FR.basis_norm(deg)
 
 set = Setup(
     matter = "radiation",
@@ -19,13 +19,12 @@ set = Setup(
     maxTime = 0.5,
 )
 ps = FRPSpace1D(0, 1, 50, deg)
-vs = VSpace1D(-1, 1, 48)
+vs = VSpace1D(-1, 1, 100)
 
 δ = heaviside.(vs.u)
 function fb!(ff, f, u, rot = 1)
     δ = heaviside.(u .* rot)
     fWall = @. 0.5 * δ + f * (1.0 - δ)
-    #fWall = 0.1
     @. ff = u * fWall
 
     return nothing
@@ -39,7 +38,7 @@ function mol!(du, u, p, t)
     nsp = length(ll)
 
     f = zero(u)
-    @inbounds Threads.@threads for i = 1:ncell
+    @inbounds @threads for i = 1:ncell
         J = 0.5 * dx[i]
 
         for k = 1:nsp
@@ -49,46 +48,48 @@ function mol!(du, u, p, t)
 
     u_face = zeros(eltype(u), ncell, nu, 2)
     f_face = zeros(eltype(u), ncell, nu, 2)
-    @inbounds Threads.@threads for i = 1:ncell
+    @inbounds @threads for i = 1:ncell
         for j = 1:nu, k = 1:nsp
-            # right face of element i
-            u_face[i, j, 1] += u[i, j, k] * lr[k]
-            f_face[i, j, 1] += f[i, j, k] * lr[k]
-
             # left face of element i
-            u_face[i, j, 2] += u[i, j, k] * ll[k]
-            f_face[i, j, 2] += f[i, j, k] * ll[k]
+            u_face[i, j, 1] += u[i, j, k] * ll[k]
+            f_face[i, j, 1] += f[i, j, k] * ll[k]
+
+            # right face of element i
+            u_face[i, j, 2] += u[i, j, k] * lr[k]
+            f_face[i, j, 2] += f[i, j, k] * lr[k]
         end
     end
 
     u_interaction = zeros(eltype(u), ncell+1, nu)
     f_interaction = zeros(eltype(u), ncell+1, nu)
-    @inbounds Threads.@threads for i = 2:ncell
-        @. u_interaction[i, :] = u_face[i, :, 2] * (1.0 - δ) + u_face[i-1, :, 1] * δ
-        @. f_interaction[i, :] = f_face[i, :, 2] * (1.0 - δ) + f_face[i-1, :, 1] * δ
+    @inbounds @threads for i = 2:ncell
+        @. u_interaction[i, :] = u_face[i, :, 1] * (1.0 - δ) + u_face[i-1, :, 2] * δ
+        @. f_interaction[i, :] = f_face[i, :, 1] * (1.0 - δ) + f_face[i-1, :, 2] * δ
     end
     fw = @view f_interaction[1, :]
-    fb!(fw, u_face[1, :, 2], velo)
+    fb!(fw, u_face[1, :, 1], velo)
+    fw ./= (0.5 * dx[1])
 
     rhs = zeros(eltype(u), ncell, nu, nsp)
-    @inbounds Threads.@threads for i = 1:ncell
+    @inbounds @threads for i = 1:ncell
         for j = 1:nu, ppp1 = 1:nsp, k = 1:nsp
             rhs[i, j, ppp1] += f[i, j, k] * lpdm[ppp1, k]
         end
     end
 
-    @inbounds Threads.@threads for i = 1:ncell-1
+    @inbounds @threads for i = 1:ncell-1
         for ppp1 = 1:nsp
             M = sum(weights .* u[i, :, ppp1])
             τ = kn
 
-            j = 1:nu
-            du[i, j, ppp1] .=
-                -(
-                    rhs[i, j, ppp1] .+
-                    (f_interaction[i, j] .- f_face[i, j, 2]) .* dgl[ppp1] .+
-                    (f_interaction[i+1, j] .- f_face[i, j, 1]) .* dgr[ppp1]
-                ) #.+ (M .- u[i, j, ppp1]) ./ τ
+            for j = 1:nu
+                du[i, j, ppp1] =
+                    -(
+                        rhs[i, j, ppp1] +
+                        (f_interaction[i, j] - f_face[i, j, 1]) * dgl[ppp1] +
+                        (f_interaction[i+1, j] - f_face[i, j, 2]) * dgr[ppp1]
+                    ) + (M - u[i, j, ppp1]) / τ
+            end
         end
     end
 
@@ -113,21 +114,22 @@ itg = init(
     dt = dt,
 )
 
-@showprogress for iter = 1:200#nt
+@showprogress for iter = 1:nt
     step!(itg)
 
-    for j = 1:vs.nu, i = 1:ps.nx
-        ũ = ps.iV * itg.u[i, j, :]
-        su = ũ[end]^2 / sum(ũ.^2)
-        isShock = shock_detector(log10(su), ps.deg)
+    Threads.@threads for j = 1:vs.nu
+        for i = 1:ps.nx
+            ũ = ps.iV * itg.u[i, j, :]
+            su = ũ[end]^2 / sum(ũ.^2)
+            isShock = shock_detector(log10(su), ps.deg)
+            if isShock
+                modal_filter!(ũ, ℓ; filter = :lasso)
+                itg.u[i, j, :] .= ps.V * ũ
+            end
 
-        if isShock
-            modal_filter!(ũ, ℓ; filter = :lasso)
-            itg.u[i, j, :] .= ps.V * ũ
+            #tmp = @view itg.u[i, j, :]
+            #positive_limiter(tmp, ps.wp ./ 2, ps.ll, ps.lr)
         end
-
-        tmp = @view itg.u[i, j, :]
-        positive_limiter(tmp, ps.wp ./ 2, ps.ll, ps.lr)
     end
 end
 
@@ -147,5 +149,5 @@ begin
     end
 end
 
-plot(x[1:end], sol[1:end, 1])
+plot(x[1:end], sol[1:end, 1], xlabel="x", ylabel="ρ")
 scatter(x[1:end], sol[1:end, 1])
