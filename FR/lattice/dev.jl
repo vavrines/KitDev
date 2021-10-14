@@ -6,7 +6,7 @@ import PyPlot
 
 itp = pyimport("scipy.interpolate")
 begin
-    deg = 3
+    deg = 2
     nsp = deg + 1
     oq = 6
     knudsen = 1e0
@@ -18,10 +18,10 @@ set = Setup(
     case = "linesource",
     space = "2d1f2v",
     boundary = "fix",
-    cfl = 0.1,
+    cfl = 0.2,
     maxTime = 0.1,
 )
-ps = FRPSpace2D(-1.5, 1.5, 25, -1.5, 1.5, 25, deg)
+ps = FRPSpace2D(-3.5, 3.5, 20, -3.5, 3.5, 20, deg)
 
 points, triangulation = octa_quadrature(oq)
 weights = quadrature_weights(points, triangulation)
@@ -29,16 +29,60 @@ vs = VSpace1D(-1, 1, length(weights), points, zero(points), weights)
 δu = heaviside.(vs.u[:, 1])
 δv = heaviside.(vs.u[:, 2])
 
-init_field(x, y, s = 0.03, ϵ = 1e-4) = max(ϵ, 1.0 / (4.0 * π * s^2) * exp(-(x^2 + y^2) / 4.0 / s^2))
+function is_absorb(x, y)
+    cds = Array{Bool}(undef, 11) # conditions
+
+    cds[1] = -2.5<x<-1.5 && 1.5<y<2.5
+    cds[2] = -2.5<x<-1.5 && -0.5<y<0.5
+    cds[3] = -2.5<x<-1.5 && -2.5<y<-1.5
+    cds[4] = -1.5<x<-0.5 && 0.5<y<1.5
+    cds[5] = -1.5<x<-0.5 && -1.5<y<-0.5
+    cds[6] = -0.5<x<0.5 && -2.5<y<-1.5
+    cds[7] = 0.5<x<1.5 && 0.5<y<1.5
+    cds[8] = 0.5<x<1.5 && -1.5<y<-0.5
+    cds[9] = 1.5<x<2.5 && 1.5<y<2.5
+    cds[10] = 1.5<x<2.5 && -0.5<y<0.5
+    cds[11] = 1.5<x<2.5 && -2.5<y<-1.5
+
+    if any(cds) == true
+        return true
+    else
+        return false
+    end
+end
+
+begin
+    σs = zeros(ps.nx, ps.ny)
+    σa = zeros(ps.nx, ps.ny)
+    for i = 1:ps.nx, j = 1:ps.ny
+        if is_absorb(ps.x[i, j], ps.y[i, j])
+            σs[i, j] = 0.0
+            σa[i, j] = 10.0
+        else
+            σs[i, j] = 1.0
+            σa[i, j] = 0.0
+        end
+    end
+    σt = σs + σa
+    σq = zeros(ps.nx, ps.ny)
+    for i = 1:ps.nx, j = 1:ps.ny
+        if -0.5<ps.x[i, j]<0.5 && -0.5<ps.y[i, j]<0.5
+            σq[i, j] = 30.0  / (4.0 * π)
+        else
+            σq[i, j] = 0.0
+        end
+    end
+end
+
 u0 = zeros(ps.nx, ps.ny, vs.nu, nsp, nsp)
 for i = 1:ps.nx, j = 1:ps.ny, p = 1:nsp, q = 1:nsp
-    u0[i, j, :, p, q] .= init_field(ps.xpg[i, j, p, q, 1], ps.xpg[i, j, p, q, 2])
+    u0[i, j, :, p, q] .= 1e-6
 end
 
 function mol!(du, u, p, t)
     dx, dy, velo, weights, δu, δv,
     fx, fy, ux_face, uy_face, fx_face, fy_face, fx_interaction, fy_interaction,
-    rhs1, rhs2, τ, ll, lr, lpdm, dgl, dgr = p
+    rhs1, rhs2, σs, σt, σq, ll, lr, lpdm, dgl, dgr = p
 
     nx = size(u, 1)
     ny = size(u, 2)
@@ -111,7 +155,7 @@ function mol!(du, u, p, t)
                         (fx_interaction[i+1, j, k, q] - fx_face[i, j, k, q, 2]) * dgr[p] +
                         (fy_interaction[i, j, k, p] - fy_face[i, j, k, p, 1]) * dgl[q] +
                         (fy_interaction[i, j+1, k, p] - fy_face[i, j, k, p, 2]) * dgr[q]
-                    ) + (M - u[i, j, k, p, q]) / τ
+                    ) + σs[i, j] * M - σt[i, j] * u[i, j, k, p, q] + σq[i, j]
             end
         end
     end
@@ -135,7 +179,7 @@ begin
 end
 p = (ps.dx, ps.dy, vs.u, vs.weights, δu, δv,
     fx, fy, ux_face, uy_face, fx_face, fy_face, fx_interaction, fy_interaction, rhs1, rhs2,
-    knudsen, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr)
+    σs, σt, σq, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr)
 
 prob = ODEProblem(mol!, u0, tspan, p)
 itg = init(
@@ -148,7 +192,7 @@ itg = init(
     dt = dt,
 )
 
-@showprogress for iter = 1:nt
+@showprogress for iter = 1:nt*500
     step!(itg)
 end
 
