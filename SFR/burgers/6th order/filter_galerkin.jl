@@ -172,7 +172,7 @@ itg = init(prob, Tsit5(), saveat = tspan[2], adaptive = false, dt = dt)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
             #FR.modal_filter!(ũ, PhiL1; filter = :lasso)
-            #FR.modal_filter!(ũ, 8, 8; filter = :exp)
+            FR.modal_filter!(ũ, 3, 3, 36*dt; filter = :exp)
 
 
             itg.u[i, :, :] .= ps.V * ũ
