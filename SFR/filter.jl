@@ -25,15 +25,20 @@ end=#
 
 function KitBase.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFloat}
     nx, nz = size(u)
-    λ = args[1]
+    spx = args[1]
 
     if length(args) >= 2
-        Nc = args[2]
+        spy = args[2]
     else
-        Nc = 0
+        spy = spx
+    end
+    if length(args) >= 3
+	lamdt = args[3]
+    else
+	lamdt = 1
     end
 
-    σ = filter_exp2d(nx-1, nz-1, λ, Nc)
+    σ = filter_exp2d(nx-1, nz-1, spx,spy).^lamdt
 
     for j in axes(u, 2), i in axes(u, 1)
         u[i, j] *= σ[i, j]
@@ -42,14 +47,15 @@ function KitBase.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFl
     return nothing
 end
 
-function filter_exp2d(Nx, Ny, sp, Nc = 0)
+function filter_exp2d(Nx, Ny, spx, spy, Nc = 0)
     alpha = -log(eps())
 
     filterdiag = ones((Nx + 1), (Ny + 1))
     for i = 0:Nx
         for j = 0:Ny
             if i + j >= Nc
-                filterdiag[i+1, j+1] = exp(-alpha * ((i + j - Nc) / (Nx + Ny - Nc))^sp)
+     		#filterdiag[i+1, j+1] = exp(-alpha * ((i + j - Nc) / (Nx + Ny - Nc))^sp)
+		filterdiag[i+1, j+1] = exp(-alpha * ((i/(Nx+1))^spx + (j/(Ny+1))^spy))
             end
         end
     end
