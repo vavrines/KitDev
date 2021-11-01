@@ -88,7 +88,7 @@ end
     t = 0.0
     dt = timestep(ks, ctr, t)
     nt = Int(ks.set.maxTime ÷ dt) + 1
-    res = zero(ks.ib.wL)
+    res = zeros(3)
     for iter = 1:2000#nt
         if iter%13 == 0
             for i = 1:ks.ps.nx

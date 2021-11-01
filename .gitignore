@@ -5,3 +5,5 @@ FR/paper/sod/accuracy/kn2_ref.jld2
 continuum-machine/2d/cylinder/restart.jld2
 continuum-machine/2d/cylinder/*.jld2
 continuum-machine/2d/cylinder/log
+continuum-machine/1d/.ipynb_checkpoints/kitrt-checkpoint.ipynb
+continuum-machine/1d/sampler/.ipynb_checkpoints/kitrt-checkpoint.ipynb
