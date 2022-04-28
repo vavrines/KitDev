@@ -1,8 +1,10 @@
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 FluxReconstruction = "19bbc782-a6fb-447a-8120-ff40275555e1"
 KitBase = "86eed249-3a28-466f-8d3a-596821e1af9a"
 KitML = "b2531deb-9288-45c6-8f4a-0220551da45d"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
