@@ -3,21 +3,6 @@
 # M. Roughan. The Polylogarithm Function in Julia. arXiv:2010.09860, 2020.
 # ============================================================
 
-"""
-    be_integral(ν, z)
-
-Bose-Einstein integral
-"""
-be_integral(ν, z) = polylog(ν+1, z) |> real
-
-"""
-    fd_integral(ν, z)
-
-Fermi-Dirac integral
-"""
-fd_integral(ν, z) = -polylog(ν+1, -z) |> real
-
-
 using SpecialFunctions
 
 const ComplexOrReal{T} = Union{T,Complex{T}}

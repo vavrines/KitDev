@@ -34,3 +34,6 @@ w1 = KB.moments_conserve(f, vs.u, vs.weights)
 w1[1]
 
 fd_integral(-0.5, prim[1]) * m / ℓ * β
+
+n = w1[1] / m
+# ̂dimensionless value: 0.4975
