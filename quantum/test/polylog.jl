@@ -5,7 +5,7 @@
 using PyCall
 
 cd(@__DIR__)
-include("integral.jl")
+include("../polylog.jl")
 
 py"""
 import mpmath as mp

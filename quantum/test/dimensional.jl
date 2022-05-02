@@ -2,7 +2,7 @@ using CairoMakie
 import KitBase as KB
 
 cd(@__DIR__)
-include("integral.jl")
+include("../tools.jl")
 
 h = 6.62607015e-34
 m = 9.1093837e-31
