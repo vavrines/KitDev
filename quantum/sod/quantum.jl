@@ -1,27 +1,27 @@
 using NonlinearSolve, CairoMakie
 import KitBase as KB
-using KitBase.OffsetArrays, KitBase.StructArrays
+using KitBase.OffsetArrays, KitBase.StructArrays, KitBase.JLD2
 using Base.Threads: @threads
 using KitBase.ProgressMeter: @showprogress
 
 cd(@__DIR__)
-include("tools.jl")
+include("../tools.jl")
 
 set = KB.Setup(
     space = "1d1f1v",
-    interpOrder = 1,
+    interpOrder = 2,
     boundary = ["fix", "fix"],
-    maxTime = 0.18,
+    maxTime = 0.12,
     cfl = 0.5,
 )
 
 ps = KB.PSpace1D(0, 1, 100, 1)
 vs = KB.VSpace1D(-5, 5, 60)
-gas = KB.Gas(Kn = 1e-4, γ = 2)
+gas = KB.Gas(Kn = 1e-3, γ = 2) # γ is β in quantum model
 
 function ib_condition(set, ps, vs, gas)
-    primL = [0.8, 0.0, 1.0]
-    primR = [0.7, 0.0, 1.25]
+    primL = [20.0, 0.0, 0.5]
+    primR = [5.0, 0.0, 0.625]
     β = gas.γ
 
     wL = prim_conserve(primL, β)
@@ -172,13 +172,17 @@ end
     update!(ks, ctr, face, dt, res)
 end
 
+@load "classical.jld2" sol
+sol0 = deepcopy(sol)
+
 sol = zeros(ks.ps.nx, 6)
 for i = 1:ks.ps.nx
     sol[i, 1:3] .= ctr[i].w
     sol[i, 4:6] .= conserve_prim(ctr[i].w, ks.gas.γ)
 end
 begin
-    fig = lines(ks.ps.x[1:ks.ps.nx], 1 ./ sol[:, 6]; label = "f", xlabel="x")
+    fig = lines(ks.ps.x[1:ks.ps.nx], sol[:, 1]; label = "quantum")
+    lines!(ks.ps.x[1:ks.ps.nx], sol0[:, 1]; label = "classical")
     axislegend()
     fig
 end
