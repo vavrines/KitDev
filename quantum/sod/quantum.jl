@@ -1,6 +1,6 @@
 using NonlinearSolve, CairoMakie
 import KitBase as KB
-using KitBase.OffsetArrays, KitBase.StructArrays, KitBase.JLD2
+using KitBase.OffsetArrays, KitBase.StructArrays, KitBase.JLD2, KitBase.SpecialFunctions
 using Base.Threads: @threads
 using KitBase.ProgressMeter: @showprogress
 

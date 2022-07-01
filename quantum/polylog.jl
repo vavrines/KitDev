@@ -3,8 +3,6 @@
 # M. Roughan. The Polylogarithm Function in Julia. arXiv:2010.09860, 2020.
 # ============================================================
 
-using SpecialFunctions
-
 const ComplexOrReal{T} = Union{T,Complex{T}}
 
 const default_accuracy = 1.0e-12

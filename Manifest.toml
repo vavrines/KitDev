@@ -332,6 +332,12 @@ git-tree-sha1 = "28d605d9a0ac17118fe2c5e9ce0fbb76c3ceb120"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
 version = "1.11.0"
 
+[[Distances]]
+deps = ["LinearAlgebra", "Statistics"]
+git-tree-sha1 = "a5b88815e6984e9f3256b6ca0dc63109b16a506f"
+uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+version = "0.9.2"
+
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
@@ -918,6 +924,12 @@ git-tree-sha1 = "7bf979d315193570cc2b79b4d2eb4595d68b9352"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
 version = "0.12.119"
 
+[[MINPACK]]
+deps = ["Distances", "LinearAlgebra", "Printf"]
+git-tree-sha1 = "cd4878dae41b1d0d63adef75b417fdd3b4ed0dfb"
+uuid = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
+version = "1.1.1"
+
 [[MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
 git-tree-sha1 = "e595b205efd49508358f7dc670a940c790204629"
@@ -1028,6 +1040,12 @@ deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
 git-tree-sha1 = "50310f934e55e5ca3912fb941dec199b49ca9b68"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
 version = "7.8.2"
+
+[[NLsolve]]
+deps = ["Distances", "LineSearches", "LinearAlgebra", "NLSolversBase", "Printf", "Reexport"]
+git-tree-sha1 = "019f12e9a1a7880459d0173c182e6a99365d7ac1"
+uuid = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+version = "4.5.1"
 
 [[NNlib]]
 deps = ["Adapt", "ChainRulesCore", "LinearAlgebra", "Pkg", "Requires", "Statistics"]
@@ -1398,6 +1416,12 @@ deps = ["ArrayInterfaceCore", "CommonSolve", "ConstructionBase", "Distributed", 
 git-tree-sha1 = "3243a883fa422a0a5cfe2d3b6ea6287fc396018f"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 version = "1.42.2"
+
+[[SciMLNLSolve]]
+deps = ["LineSearches", "MINPACK", "NLsolve", "Reexport", "SciMLBase"]
+git-tree-sha1 = "554977da0252abd146c0b4f71b6790b81d5d70bb"
+uuid = "e9a6253c-8580-4d32-9898-8661bb511710"
+version = "0.1.0"
 
 [[Scratch]]
 deps = ["Dates"]
