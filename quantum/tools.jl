@@ -1,6 +1,6 @@
 using NonlinearSolve, SciMLNLSolve
 
-include("polylog.jl")
+#include("polylog.jl")
 
 """
     be_integral(ν, z)
