@@ -1,6 +1,5 @@
 using NonlinearSolve, CairoMakie
-import KitBase as KB
-import KitBase: polylog
+using KitBase
 using KitBase.OffsetArrays, KitBase.StructArrays, KitBase.JLD2, KitBase.SpecialFunctions
 using Base.Threads: @threads
 using KitBase.ProgressMeter: @showprogress
@@ -21,12 +20,12 @@ vs = KB.VSpace1D(-5, 5, 60)
 gas = KB.Gas(Kn = 1e-3, γ = 2) # γ is β in quantum model
 
 function ib_condition(set, ps, vs, gas)
-    primL = [20.0, 0.0, 0.5]
+    primL = [20.0, 0.0, 0.5] # [A, U, λ]
     primR = [5.0, 0.0, 0.625]
     β = gas.γ
 
-    wL = prim_conserve(primL, β)
-    wR = prim_conserve(primR, β)
+    wL = quantum_prim_conserve(primL, β)
+    wR = quantum_prim_conserve(primR, β)
 
     p = (
         x0 = ps.x0,
@@ -57,7 +56,7 @@ function ib_condition(set, ps, vs, gas)
     p = (p..., u = vs.u)
     ff = function (x, p)
         w = ifelse(x <= (p.x0 + p.x1) / 2, p.wL, p.wR)
-        prim = conserve_prim(w, p.β)
+        prim = quantum_conserve_prim(w, p.β)
         h = fd_equilibrium(p.u, prim, p.β)
         return h
     end
@@ -73,7 +72,7 @@ ks = KB.SolverSet(set, ps, vs, gas, ib, @__DIR__)
 ctr = OffsetArray{KB.ControlVolume1F}(undef, axes(ks.ps.x, 1))
 for i in axes(ctr, 1)
     w = ks.ib.fw(ks.ps.x[i], ks.ib.p)
-    prim = conserve_prim(w, ks.gas.γ)
+    prim = quantum_conserve_prim(w, ks.gas.γ)
     h = fd_equilibrium(vs.u, prim, ks.gas.γ)
     ctr[i] = KB.ControlVolume(w, prim, h, 1)
 end
@@ -114,7 +113,7 @@ function step!(
 
     #--- update W^{n+1} ---#
     @. w += (fwL - fwR) / dx
-    prim .= conserve_prim(w, β)
+    prim .= quantum_conserve_prim(w, β)
 
     #--- record residuals ---#
     @. RES += (w - w_old)^2
@@ -179,7 +178,7 @@ sol0 = deepcopy(sol)
 sol = zeros(ks.ps.nx, 6)
 for i = 1:ks.ps.nx
     sol[i, 1:3] .= ctr[i].w
-    sol[i, 4:6] .= conserve_prim(ctr[i].w, ks.gas.γ)
+    sol[i, 4:6] .= quantum_conserve_prim(ctr[i].w, ks.gas.γ)
 end
 begin
     fig = lines(ks.ps.x[1:ks.ps.nx], sol[:, 1]; label = "quantum")

@@ -37,7 +37,7 @@ const Aprob0 = NonlinearProblem{false}(Aeq, 0.3, (0.556, 0.19, 2))
 Aprob(w, β) = remake(Aprob0, u0 = w[1], p = (w[1], w[3] - w[2]^2 / w[1] / 2, β))
 
 
-function conserve_prim(w, β)
+function quantum_conserve_prim(w, β)
     prim = zero(w)
 
     prob = Aprob(w, β)
@@ -50,7 +50,7 @@ function conserve_prim(w, β)
     return prim
 end
 
-function prim_conserve(prim, β)
+function quantum_prim_conserve(prim, β)
     w = zero(prim)
 
     w[1] = fd_integral(-0.5, prim[1]) * β / sqrt(prim[3])
@@ -59,4 +59,3 @@ function prim_conserve(prim, β)
 
     return w
 end
-
