@@ -66,7 +66,7 @@ end
 fw, ff, bc, p = ib_condition(set, ps, vs, gas)
 ib = KB.IB1F{typeof(bc)}(fw, ff, bc, p)
 
-ks = KB.SolverSet(set, ps, vs, gas, ib, @__DIR__)
+ks = KB.SolverSet(set, ps, vs, gas, ib)
 
 uq = UQ1D(5, 10, 0.8, 1.2, "uniform", "galerkin")
 
@@ -122,7 +122,7 @@ for i in axes(ctr, 1)
         ctr[i] = KB.ControlVolume(wR, primR, fR, 1)
     end
 end
-#ctr = StructArray(ctr)
+ctr = StructArray(ctr)
 
 face = Array{KB.Interface1F}(undef, ks.ps.nx + 1)
 for i = 1:ks.ps.nx+1
@@ -134,23 +134,8 @@ for i = 1:ks.ps.nx+1
 end
 
 res = zeros(3)
-dt = Δt(ks, ctr, 0.0, uq)
+dt = timestep(ks, uq, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
-
-function Δt(KS, ctr, simTime, uq)
-    tmax = 0.0
-    Threads.@threads for i = 1:KS.pSpace.nx
-        @inbounds prim = ctr[i].prim
-        sos = uq_sound_speed(prim, KS.gas.γ, uq)
-        vmax = max(maximum(KS.vSpace.u1), maximum(abs.(prim[2, :]))) + maximum(sos)
-        tmax = max(tmax, vmax / KS.ps.dx[i])
-    end
-
-    dt = KS.set.cfl / tmax
-    dt = ifelse(dt < (KS.set.maxTime - simTime), dt, KS.set.maxTime - simTime)
-
-    return dt
-end
 
 function st!(KS, uq, faceL, cell, faceR,
     dt,
