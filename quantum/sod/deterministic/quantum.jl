@@ -5,7 +5,7 @@ using Base.Threads: @threads
 using KitBase.ProgressMeter: @showprogress
 
 cd(@__DIR__)
-include("../tools.jl")
+include("../../tools.jl")
 
 set = KB.Setup(
     space = "1d1f1v",
