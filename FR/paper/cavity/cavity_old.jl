@@ -66,7 +66,7 @@ function mol!(du, u, p, t) # method of lines
                 sum(@. weights * u[i, j, :, :, p, q]),
                 sum(@. weights * uvelo * u[i, j, :, :, p, q]),
                 sum(@. weights * vvelo * u[i, j, :, :, p, q]),
-                0.5 * sum(@. weights * (uvelo^2 + vvelo^2) * u[i, j, :, :, p, q])
+                0.5 * sum(@. weights * (uvelo^2 + vvelo^2) * u[i, j, :, :, p, q]),
             ]
 
             prim = conserve_prim(w, 2.0)
@@ -101,8 +101,8 @@ function mol!(du, u, p, t) # method of lines
         end
     end
 
-    fx_interaction = similar(u, nx+1, ny, nu, nv, nsp)
-    fy_interaction = similar(u, nx, ny+1, nu, nv, nsp)
+    fx_interaction = similar(u, nx + 1, ny, nu, nv, nsp)
+    fy_interaction = similar(u, nx, ny + 1, nu, nv, nsp)
     @inbounds for i = 2:nx, j = 1:ny, k = 1:nsp
         @. fx_interaction[i, j, :, :, k] =
             fx_face[i-1, j, :, :, k, 1] * δu + fx_face[i, j, :, :, k, 2] * (1.0 - δu)
@@ -111,10 +111,10 @@ function mol!(du, u, p, t) # method of lines
         @. fy_interaction[i, j, :, :, k] =
             fy_face[i, j-1, :, :, k, 1] * δv + fy_face[i, j, :, :, k, 2] * (1.0 - δv)
     end
-    fx_interaction[1, :, :, :, :] .= 0.
-    fx_interaction[nx+1, :, :, :, :] .= 0.
-    fy_interaction[:, 1, :, :, :] .= 0.
-    fy_interaction[:, ny+1, :, :, :] .= 0.
+    fx_interaction[1, :, :, :, :] .= 0.0
+    fx_interaction[nx+1, :, :, :, :] .= 0.0
+    fy_interaction[:, 1, :, :, :] .= 0.0
+    fy_interaction[:, ny+1, :, :, :] .= 0.0
 
     rhs1 = zeros(eltype(u), nx, ny, nu, nv, nsp, nsp)
     @inbounds for i = 1:nx, j = 1:ny, k = 1:nu, l = 1:nv, q = 1:nsp, p = 1:nsp, p1 = 1:nsp
@@ -128,7 +128,8 @@ function mol!(du, u, p, t) # method of lines
     @inbounds for i = 1:nx, j = 1:ny, k = 1:nu, l = 1:nv, p = 1:nsp, q = 1:nsp
         du[i, j, k, l, p, q] =
             -(
-                rhs1[i, j, k, l, p, q] + rhs2[i, j, k, l, p, q] +
+                rhs1[i, j, k, l, p, q] +
+                rhs2[i, j, k, l, p, q] +
                 (fx_interaction[i, j, k, l, q] - fx_face[i, j, k, l, q, 2]) * dgl[p] +
                 (fx_interaction[i+1, j, k, l, q] - fx_face[i, j, k, l, q, 1]) * dgr[p] +
                 (fy_interaction[i, j, k, l, p] - fy_face[i, j, k, l, p, 2]) * dgl[q] +
@@ -138,7 +139,21 @@ function mol!(du, u, p, t) # method of lines
 end
 
 tspan = (0.0, 0.001)
-p = (pspace.dx, pspace.dy, vspace.u, vspace.v, vspace.weights, δu, δv, deg, ll, lr, lpdm, dgl, dgr)
+p = (
+    pspace.dx,
+    pspace.dy,
+    vspace.u,
+    vspace.v,
+    vspace.weights,
+    δu,
+    δv,
+    deg,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr,
+)
 prob = ODEProblem(mol!, f, tspan, p)
 sol = solve(
     prob,

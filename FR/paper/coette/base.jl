@@ -27,7 +27,7 @@ nt = floor(ks.set.maxTime / dt) |> Int
             )
         end
     end
-    
+
     # boundary flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         KitBase.flux_boundary_maxwell!(
@@ -43,7 +43,7 @@ nt = floor(ks.set.maxTime / dt) |> Int
             ks.gas.K,
             dt,
             ctr[1, j].dy,
-            1.,
+            1.0,
         )
 
         KitBase.flux_boundary_maxwell!(
@@ -59,11 +59,11 @@ nt = floor(ks.set.maxTime / dt) |> Int
             ks.gas.K,
             dt,
             ctr[ks.pSpace.nx, j].dy,
-            -1.,
+            -1.0,
         )
     end
-    
-    
+
+
     # update
     @inbounds for j = 1:ks.pSpace.ny
         for i = 1:ks.pSpace.nx
@@ -113,7 +113,7 @@ begin
     end
 end
 
-Plots.plot(ks.pSpace.x[end÷2+1:end], sol_fl[end÷2+1:end, 3], legend=:topleft)
+Plots.plot(ks.pSpace.x[end÷2+1:end], sol_fl[end÷2+1:end, 3], legend = :topleft)
 Plots.plot!(ks.pSpace.x[end÷2+1:end], sol_tr[end÷2+1:end, 3])
 Plots.plot!(ks.pSpace.x[end÷2+1:end], sol_ra[end÷2+1:end, 3])
 

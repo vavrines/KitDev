@@ -22,7 +22,9 @@ function fboundary!(
     δ = heaviside.(u .* rot)
 
     SF = sum(ω .* u .* h .* (1.0 .- δ))
-    SG = (bc[end] / π) * sum(ω .* u .* exp.(-bc[end] .* ((u .- bc[2]) .^ 2 .+ (v .- bc[3]) .^ 2)) .* δ)
+    SG =
+        (bc[end] / π) *
+        sum(ω .* u .* exp.(-bc[end] .* ((u .- bc[2]) .^ 2 .+ (v .- bc[3]) .^ 2)) .* δ)
     prim = [-SF / SG; bc[2:end]]
 
     MH = maxwellian(u, v, prim)
@@ -88,16 +90,38 @@ for i = 1:nx, j = 1:ny, p = 1:nsp, q = 1:nsp
     h0[i, j, :, :, p, q] .= maxwellian(vspace.u, vspace.v, _prim)
     @. b0[i, j, :, :, p, q] = h0[i, j, :, :, p, q] * inK / (2.0 * _prim[end])
 end
-u0 = cat(h0, b0; dims=7)
+u0 = cat(h0, b0; dims = 7)
 τ0 = zeros(nx, ny, nsp, nsp)
 
 function mol!(du, u, p, t) # method of lines
-    dx, dy, uvelo, vvelo, weights, δu, δv,
-    MH, MB, fhx, fbx, 
-    hx_face, bx_face, fhx_face, fbx_face,
-    fhx_interaction, fbx_interaction,
-    rhs_h1, rhs_b1,
-    inK, γ, muref, τ, ll, lr, lpdm, dgl, dgr = p
+    dx,
+    dy,
+    uvelo,
+    vvelo,
+    weights,
+    δu,
+    δv,
+    MH,
+    MB,
+    fhx,
+    fbx,
+    hx_face,
+    bx_face,
+    fhx_face,
+    fbx_face,
+    fhx_interaction,
+    fbx_interaction,
+    rhs_h1,
+    rhs_b1,
+    inK,
+    γ,
+    muref,
+    τ,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr = p
 
     dh = @view du[:, :, :, :, :, :, 1]
     db = @view du[:, :, :, :, :, :, 2]
@@ -113,7 +137,13 @@ function mol!(du, u, p, t) # method of lines
     #MH = similar(h); MB = similar(b)
     @inbounds Threads.@threads for q = 1:nsp
         for p = 1:nsp, j = 1:ny, i = 1:nx
-            w = moments_conserve(h[i, j, :, :, p, q], b[i, j, :, :, p, q], uvelo, vvelo, weights)
+            w = moments_conserve(
+                h[i, j, :, :, p, q],
+                b[i, j, :, :, p, q],
+                uvelo,
+                vvelo,
+                weights,
+            )
             prim = conserve_prim(w, γ)
             MH[i, j, :, :, p, q] .= maxwellian(uvelo, vvelo, prim)
             @. MB[i, j, :, :, p, q] = MH[i, j, :, :, p, q] * inK / (2.0 * prim[end])
@@ -161,8 +191,10 @@ function mol!(du, u, p, t) # method of lines
     #fhy_interaction = similar(u, nx, ny+1, nu, nv, nsp)
     #fby_interaction = similar(u, nx, ny+1, nu, nv, nsp)
     @inbounds for i = 2:nx, j = 1:ny, k = 1:nsp
-        @. fhx_interaction[i, j, :, :, k] = fhx_face[i-1, j, :, :, k, 1] * δu + fhx_face[i, j, :, :, k, 2] * (1.0 - δu)
-        @. fbx_interaction[i, j, :, :, k] = fbx_face[i-1, j, :, :, k, 1] * δu + fbx_face[i, j, :, :, k, 2] * (1.0 - δu)
+        @. fhx_interaction[i, j, :, :, k] =
+            fhx_face[i-1, j, :, :, k, 1] * δu + fhx_face[i, j, :, :, k, 2] * (1.0 - δu)
+        @. fbx_interaction[i, j, :, :, k] =
+            fbx_face[i-1, j, :, :, k, 1] * δu + fbx_face[i, j, :, :, k, 2] * (1.0 - δu)
     end
 
     # boundary
@@ -170,11 +202,35 @@ function mol!(du, u, p, t) # method of lines
         for j = 1:ny
             fhwL = @view fhx_interaction[1, j, :, :, i]
             fbwL = @view fbx_interaction[1, j, :, :, i]
-            fboundary!(fhwL, fbwL, [1.0, 0.0, -1.0, 1.0], hx_face[1, j, :, :, i, 2], bx_face[1, j, :, :, i, 2], uvelo, vvelo, weights, inK, dx[1, j], 1.0)
+            fboundary!(
+                fhwL,
+                fbwL,
+                [1.0, 0.0, -1.0, 1.0],
+                hx_face[1, j, :, :, i, 2],
+                bx_face[1, j, :, :, i, 2],
+                uvelo,
+                vvelo,
+                weights,
+                inK,
+                dx[1, j],
+                1.0,
+            )
 
             fhwR = @view fhx_interaction[end, j, :, :, i]
             fbwR = @view fbx_interaction[end, j, :, :, i]
-            fboundary!(fhwR, fbwR, [1.0, 0.0, 1.0, 1.0], hx_face[end, j, :, :, i, 1], bx_face[end, j, :, :, i, 1], uvelo, vvelo, weights, inK, dx[end, j], -1.0)
+            fboundary!(
+                fhwR,
+                fbwR,
+                [1.0, 0.0, 1.0, 1.0],
+                hx_face[end, j, :, :, i, 1],
+                bx_face[end, j, :, :, i, 1],
+                uvelo,
+                vvelo,
+                weights,
+                inK,
+                dx[end, j],
+                -1.0,
+            )
         end
     end
 
@@ -218,22 +274,46 @@ begin
     fbx_face = zeros(nx, ny, nu, nv, nsp, 2)
     fhy_face = zeros(nx, ny, nu, nv, nsp, 2)
     fby_face = zeros(nx, ny, nu, nv, nsp, 2)
-    fhx_interaction = zeros(nx+1, ny, nu, nv, nsp)
-    fhy_interaction = zeros(nx, ny+1, nu, nv, nsp)
-    fbx_interaction = zeros(nx+1, ny, nu, nv, nsp)
-    fby_interaction = zeros(nx, ny+1, nu, nv, nsp)
+    fhx_interaction = zeros(nx + 1, ny, nu, nv, nsp)
+    fhy_interaction = zeros(nx, ny + 1, nu, nv, nsp)
+    fbx_interaction = zeros(nx + 1, ny, nu, nv, nsp)
+    fby_interaction = zeros(nx, ny + 1, nu, nv, nsp)
     rhs_h1 = zeros(nx, ny, nu, nv, nsp, nsp)
     rhs_b1 = zeros(nx, ny, nu, nv, nsp, nsp)
     rhs_h2 = zeros(nx, ny, nu, nv, nsp, nsp)
     rhs_b2 = zeros(nx, ny, nu, nv, nsp, nsp)
 end
 
-p = (pspace.dx, pspace.dy, vspace.u, vspace.v, vspace.weights, δu, δv,
-MH, MB, fhx, fbx, 
-hx_face, bx_face, fhx_face, fbx_face,
-fhx_interaction, fbx_interaction,
-rhs_h1, rhs_b1,
-inK, γ, muref, τ0, ll, lr, lpdm, dgl, dgr)
+p = (
+    pspace.dx,
+    pspace.dy,
+    vspace.u,
+    vspace.v,
+    vspace.weights,
+    δu,
+    δv,
+    MH,
+    MB,
+    fhx,
+    fbx,
+    hx_face,
+    bx_face,
+    fhx_face,
+    fbx_face,
+    fhx_interaction,
+    fbx_interaction,
+    rhs_h1,
+    rhs_b1,
+    inK,
+    γ,
+    muref,
+    τ0,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr,
+)
 
 prob = ODEProblem(mol!, u0, tspan, p)
 itg = init(
@@ -254,7 +334,7 @@ itg = init(
 @showprogress for i = 1:nt
     step!(itg)
 
-    if i%500 == 0
+    if i % 500 == 0
         u = itg.u
         @save "kn2.jld2" u
     end
