@@ -3,14 +3,10 @@ using ProgressMeter: @showprogress
 
 function FR.positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:AbstractFloat}
     # mean values
-    u_mean = [
-        sum(u[1, :] .* weights),
-        sum(u[2, :] .* weights),
-        sum(u[3, :] .* weights),
-    ]
+    u_mean = [sum(u[1, :] .* weights), sum(u[2, :] .* weights), sum(u[3, :] .* weights)]
     t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
     p_mean = 0.5 * u_mean[1] * t_mean
-    
+
     # density corrector
     ϵ = min(1e-13, u_mean[1], p_mean)
     ρ_min = minimum(u[:, 1]) # density minumum can emerge at both solution and flux points
@@ -44,21 +40,25 @@ function FR.positive_limiter(u::AbstractMatrix{T}, γ, weights) where {T<:Abstra
     return nothing
 end
 
-function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T<:AbstractFloat}
+function FR.positive_limiter(
+    u::AbstractArray{T,3},
+    γ,
+    wp,
+    wq,
+    ll,
+    lr,
+) where {T<:AbstractFloat}
     # tensorized quadrature weights
     weights = zeros(length(wp), length(wq))
     for i in axes(weights, 1), j in axes(weights, 2)
         weights[i, j] = wp[i] * wq[j]
     end
-    
+
     # mean values
-    u_mean = [
-        sum(u[:, 1, :] .* weights),
-        sum(u[:, 2, :] .* weights),
-        sum(u[:, 3, :] .* weights),
-    ]
+    u_mean =
+        [sum(u[:, 1, :] .* weights), sum(u[:, 2, :] .* weights), sum(u[:, 3, :] .* weights)]
     t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
-    
+
     # boundary variables
     ρb = zeros(2, length(wq))
     mb = zero(ρb)
@@ -87,7 +87,11 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
         prim = conserve_prim([ρb[i], mb[i], eb[i]], γ)
 
         if 1 / prim[end] < ϵ
-            prob = NonlinearProblem{false}(FR.tj_equation, 1.0, ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ))
+            prob = NonlinearProblem{false}(
+                FR.tj_equation,
+                1.0,
+                ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ),
+            )
             sol = solve(prob, NewtonRaphson(), tol = 1e-8)
             push!(tj, sol.u)
         end
@@ -110,7 +114,7 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr) where {T
             u[i, j, k] = t2 * (u[i, j, k] - u_mean[j]) + u_mean[j]
         end
     end
-    
+
     return nothing
 end
 
@@ -137,7 +141,7 @@ begin
 end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
-V = vandermonde_matrix(ps.deg,ps.xpl)
+V = vandermonde_matrix(ps.deg, ps.xpl)
 VInv = inv(Array(ps.V))
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 
@@ -149,7 +153,7 @@ begin
     isRandomLocation = true
     isPrefilter = true
 
-    u = zeros(ncell, nsp, 3, uq.nm+1)
+    u = zeros(ncell, nsp, 3, uq.nm + 1)
     if isRandomLocation
         # stochastic location
         for i = 1:ncell, j = 1:nsp
@@ -163,7 +167,7 @@ begin
                 end
             end
 
-            prim_chaos = zeros(3, uq.nm+1)
+            prim_chaos = zeros(3, uq.nm + 1)
             for k = 1:3
                 prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
             end
@@ -173,7 +177,7 @@ begin
     else
         # stochastic density
         for i = 1:ncell, j = 1:nsp
-            prim = zeros(3, uq.nm+1)
+            prim = zeros(3, uq.nm + 1)
             if ps.x[i] <= 0.5
                 prim[1, :] .= uq.pce
                 #prim[1, 1] = 1.0
@@ -227,8 +231,11 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
         end
 
         ũ = VInv * itg.u[i, :, 1, :]
-        su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
+        su = maximum([ũ[end, j]^2 / sum(ũ[:, j] .^ 2) for j = 1:uq.nm+1])
+        sv = maximum([
+            ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :] .^ 2 .* l2) for
+            j = 1:nsp
+        ])
         isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
         if isShock
             λ1 = dt * (su) * 5.0
@@ -251,7 +258,7 @@ end
 
 begin
     x = zeros(ncell * nsp)
-    w = zeros(ncell * nsp, 3, uq.nm+1)
+    w = zeros(ncell * nsp, 3, uq.nm + 1)
     for i = 1:ncell
         idx0 = (i - 1) * nsp
 
@@ -263,9 +270,9 @@ begin
         end
     end
 
-    sol = zeros(ncell*nsp, 3, 2)
+    sol = zeros(ncell * nsp, 3, 2)
     for i in axes(sol, 1)
-        p1 = zeros(3, uq.nm+1)
+        p1 = zeros(3, uq.nm + 1)
         p1 = uq_conserve_prim(w[i, :, :], γ, uq)
         p1[end, :] .= lambda_tchaos(p1[end, :], 1.0, uq)
 
@@ -275,14 +282,14 @@ begin
         end
     end
 
-    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-    plot!(pic1, x, sol[:, 2, 1], label="U")
-    plot!(pic1, x, sol[:, 3, 1], label="T")
-    pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
-    plot!(pic2, x, sol[:, 2, 2], label="U")
-    plot!(pic2, x, sol[:, 3, 2], label="T")
+    pic1 = plot(x, sol[:, 1, 1], label = "ρ", xlabel = "x", ylabel = "mean")
+    plot!(pic1, x, sol[:, 2, 1], label = "U")
+    plot!(pic1, x, sol[:, 3, 1], label = "T")
+    pic2 = plot(x, sol[:, 1, 2], label = "ρ", xlabel = "x", ylabel = "std")
+    plot!(pic2, x, sol[:, 2, 2], label = "U")
+    plot!(pic2, x, sol[:, 3, 2], label = "T")
     plot(pic1, pic2)
 end
 
-plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
+plot(x, sol[:, 1, 1], label = "ρ", xlabel = "x", ylabel = "mean")
+plot(x, sol[:, 1, 2], label = "ρ", xlabel = "x", ylabel = "std")

@@ -24,7 +24,7 @@ begin
 end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
-V = vandermonde_matrix(ps.deg,ps.xpl)
+V = vandermonde_matrix(ps.deg, ps.xpl)
 VInv = inv(V)
 
 cd(@__DIR__)
@@ -35,7 +35,7 @@ begin
     isRandomLocation = true
     isPrefilter = false#true
 
-    u = zeros(ncell, nsp, 3, uq.nm+1)
+    u = zeros(ncell, nsp, 3, uq.nm + 1)
     if isRandomLocation
         # stochastic location
         for i = 1:ncell, j = 1:nsp
@@ -49,7 +49,7 @@ begin
                 end
             end
 
-            prim_chaos = zeros(3, uq.nm+1)
+            prim_chaos = zeros(3, uq.nm + 1)
             for k = 1:3
                 prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
             end
@@ -59,7 +59,7 @@ begin
     else
         # stochastic density
         for i = 1:ncell, j = 1:nsp
-            prim = zeros(3, uq.nm+1)
+            prim = zeros(3, uq.nm + 1)
             if ps.x[i] <= 0.5
                 #prim[1, :] .= uq.pce
                 prim[1, 1] = 1.0
@@ -136,7 +136,7 @@ end
 
 begin
     x = zeros(ncell * nsp)
-    w = zeros(ncell * nsp, 3, uq.nm+1)
+    w = zeros(ncell * nsp, 3, uq.nm + 1)
     for i = 1:ncell
         idx0 = (i - 1) * nsp
 
@@ -148,9 +148,9 @@ begin
         end
     end
 
-    sol = zeros(ncell*nsp, 3, 2)
+    sol = zeros(ncell * nsp, 3, 2)
     for i in axes(sol, 1)
-        p1 = zeros(3, uq.nm+1)
+        p1 = zeros(3, uq.nm + 1)
         p1 = uq_conserve_prim(w[i, :, :], γ, uq)
         p1[end, :] .= lambda_tchaos(p1[end, :], 1.0, uq)
 
@@ -160,18 +160,18 @@ begin
         end
     end
 
-    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-    plot!(pic1, x, sol[:, 2, 1], label="U")
-    plot!(pic1, x, sol[:, 3, 1], label="T")
-    pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
-    plot!(pic2, x, sol[:, 2, 2], label="U")
-    plot!(pic2, x, sol[:, 3, 2], label="T")
+    pic1 = plot(x, sol[:, 1, 1], label = "ρ", xlabel = "x", ylabel = "mean")
+    plot!(pic1, x, sol[:, 2, 1], label = "U")
+    plot!(pic1, x, sol[:, 3, 1], label = "T")
+    pic2 = plot(x, sol[:, 1, 2], label = "ρ", xlabel = "x", ylabel = "std")
+    plot!(pic2, x, sol[:, 2, 2], label = "U")
+    plot!(pic2, x, sol[:, 3, 2], label = "T")
     plot(pic1, pic2)
 end
 
 #sol0 = deepcopy(sol)
-plot(x, sol[:, 1, 1], label="Optimized L2", xlabel="x", ylabel="ρ")
-plot!(x, sol0[:, 1, 1], label="L2")
+plot(x, sol[:, 1, 1], label = "Optimized L2", xlabel = "x", ylabel = "ρ")
+plot!(x, sol0[:, 1, 1], label = "L2")
 
-plot(x, sol[:, 1, 2], label="Optimized L2", xlabel="x", ylabel="ρ")
-plot!(x, sol0[:, 1, 2], label="L2")
+plot(x, sol[:, 1, 2], label = "Optimized L2", xlabel = "x", ylabel = "ρ")
+plot!(x, sol0[:, 1, 2], label = "L2")

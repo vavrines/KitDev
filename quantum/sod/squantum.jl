@@ -27,15 +27,7 @@ function ib_condition(set, ps, vs, gas)
     wL = quantum_prim_conserve(primL, β)
     wR = quantum_prim_conserve(primR, β)
 
-    p = (
-        x0 = ps.x0,
-        x1 = ps.x1,
-        wL = wL,
-        wR = wR,
-        primL = primL,
-        primR = primR,
-        β = gas.γ,
-    )
+    p = (x0 = ps.x0, x1 = ps.x1, wL = wL, wR = wR, primL = primL, primR = primR, β = gas.γ)
 
     fw = function (x, p)
         if x <= (p.x0 + p.x1) / 2
@@ -98,12 +90,12 @@ for j = 1:uq.nq
     fRq[:, j] .= fd_equilibrium(vs.u, primRq[:, j], ks.gas.γ)
 end
 
-wL = zeros(3, uq.nr+1)
-wR = zeros(3, uq.nr+1)
-primL = zeros(3, uq.nr+1)
-primR = zeros(3, uq.nr+1)
-fL = zeros(ks.vs.nu, uq.nr+1)
-fR = zeros(ks.vs.nu, uq.nr+1)
+wL = zeros(3, uq.nr + 1)
+wR = zeros(3, uq.nr + 1)
+primL = zeros(3, uq.nr + 1)
+primR = zeros(3, uq.nr + 1)
+fL = zeros(ks.vs.nu, uq.nr + 1)
+fR = zeros(ks.vs.nu, uq.nr + 1)
 for i = 1:3
     wL[i, :] .= ran_chaos(wLq[i, :], uq)
     wR[i, :] .= ran_chaos(wRq[i, :], uq)
@@ -117,7 +109,7 @@ end
 
 ctr = OffsetArray{KB.ControlVolume1F}(undef, axes(ks.ps.x, 1))
 for i in axes(ctr, 1)
-    if i <= ks.ps.nx÷2
+    if i <= ks.ps.nx ÷ 2
         ctr[i] = KB.ControlVolume(wL, primL, fL, 1)
     else
         ctr[i] = KB.ControlVolume(wR, primR, fR, 1)
@@ -127,11 +119,7 @@ ctr = StructArray(ctr)
 
 face = Array{KB.Interface1F}(undef, ks.ps.nx + 1)
 for i = 1:ks.ps.nx+1
-    face[i] = KB.Interface(
-        zeros(3, uq.nr+1),
-        zeros(ks.vs.nu, uq.nr+1),
-        1,
-    )
+    face[i] = KB.Interface(zeros(3, uq.nr + 1), zeros(ks.vs.nu, uq.nr + 1), 1)
 end
 
 res = zeros(3)
@@ -207,16 +195,7 @@ end=#
 
 function ev!(KS, uq, ctr, face, dt)
     @inbounds Threads.@threads for i in eachindex(face)
-        ufgalerkin!(
-            KS,
-            uq,
-            ctr[i-1],
-            face[i],
-            ctr[i],
-            dt,
-            KS.ps.dx[i-1],
-            KS.ps.dx[i],
-        )
+        ufgalerkin!(KS, uq, ctr[i-1], face[i], ctr[i], dt, KS.ps.dx[i-1], KS.ps.dx[i])
     end
 end
 

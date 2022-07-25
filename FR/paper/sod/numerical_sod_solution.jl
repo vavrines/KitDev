@@ -8,13 +8,7 @@ nt = Int(floor(set.set.maxTime / dt))
 res = zeros(3)
 @showprogress for iter = 1:nt
     for i = 1:set.pSpace.nx+1
-        KitBase.flux_hll!(
-            face[i].fw,
-            ctr[i-1].w,
-            ctr[i].w,
-            set.gas.γ,
-            dt,
-        )
+        KitBase.flux_hll!(face[i].fw, ctr[i-1].w, ctr[i].w, set.gas.γ, dt)
     end
 
     #update!(ks, ctr, face, dt, res)

@@ -2,10 +2,23 @@ using KitBase, OrdinaryDiffEq, Plots, JLD2, ProgressMeter
 import FluxRC
 
 function bgk!(du, u, p, t)
-    Q, f, f_face, f_interaction, rhs1,
-    dx, vx, vy, vz, weights, δ, 
-    muref, 
-    ll, lr, lpdm, dgl, dgr = p
+    Q,
+    f,
+    f_face,
+    f_interaction,
+    rhs1,
+    dx,
+    vx,
+    vy,
+    vz,
+    weights,
+    δ,
+    muref,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr = p
 
     ncell = length(dx)
     nu = size(vx, 1)
@@ -21,10 +34,10 @@ function bgk!(du, u, p, t)
                 sum(@. weights * vx * u[i, :, :, :, k]),
                 sum(@. weights * vy * u[i, :, :, :, k]),
                 sum(@. weights * vz * u[i, :, :, :, k]),
-                0.5 * sum(@. weights * (vx^2 + vy^2 + vz^2) * u[i, :, :, :, k])
+                0.5 * sum(@. weights * (vx^2 + vy^2 + vz^2) * u[i, :, :, :, k]),
             ]
 
-            prim = conserve_prim(w, 5/3)
+            prim = conserve_prim(w, 5 / 3)
             M[i, :, :, :, k] .= maxwellian(vx, vy, vz, prim)
             τ = vhs_collision_time(prim, muref, 0.5)
 
@@ -81,10 +94,27 @@ function bgk!(du, u, p, t)
 end
 
 function boltzmann!(du, u, p, t)
-    Q, f, f_face, f_interaction, rhs1,
-    dx, vx, vy, vz, weights, δ, 
-    Kn, nm, phi, psi, phipsi, 
-    ll, lr, lpdm, dgl, dgr = p
+    Q,
+    f,
+    f_face,
+    f_interaction,
+    rhs1,
+    dx,
+    vx,
+    vy,
+    vz,
+    weights,
+    δ,
+    Kn,
+    nm,
+    phi,
+    psi,
+    phipsi,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr = p
 
     ncell = length(dx)
     nu = size(vx, 1)
@@ -97,15 +127,7 @@ function boltzmann!(du, u, p, t)
         for i = 1:ncell
             _Q = @view Q[i, :, :, :, k]
             _u = @view u[i, :, :, :, k]
-            boltzmann_fft!(
-                _Q,
-                _u,
-                Kn,
-                nm,
-                phi,
-                psi,
-                phipsi,
-            )
+            boltzmann_fft!(_Q, _u, Kn, nm, phi, psi, phipsi)
         end
     end
 
@@ -135,8 +157,7 @@ function boltzmann!(du, u, p, t)
         _fR = @view f_face[i, :, :, :, 2]
         _fL = @view f_face[i-1, :, :, :, 1]
 
-        @. f_interaction[i, :, :, :] =
-            _fR * (1.0 - δ) + _fL * δ
+        @. f_interaction[i, :, :, :] = _fR * (1.0 - δ) + _fL * δ
     end
 
     rhs1 .= 0.0
@@ -157,11 +178,7 @@ function boltzmann!(du, u, p, t)
             _q = @view Q[i, :, :, :, ppp1]
 
             du[i, :, :, :, ppp1] .=
-                -(
-                    _rhs1 .+
-                    (_fIL .- _fOL) .* dgl[ppp1] .+
-                    (_fIR .- _fOR) .* dgr[ppp1]
-                ) .+ _q
+                -(_rhs1 .+ (_fIL .- _fOL) .* dgl[ppp1] .+ (_fIR .- _fOR) .* dgr[ppp1]) .+ _q
         end
     end
     du[1, :, :, :, :] .= 0.0
@@ -221,11 +238,11 @@ phi, psi, phipsi = kernel_mode(
     1.0,
 )
 
-ib = ib_rh(mach, 5/3, vspace.u, vspace.v, vspace.w)
+ib = ib_rh(mach, 5 / 3, vspace.u, vspace.v, vspace.w)
 
 u0 = zeros(nx, nu, nv, nw, nsp)
 for i = 1:nx, ppp1 = 1:nsp
-    if i <= nx÷2
+    if i <= nx ÷ 2
         _prim = ib[2]
     else
         _prim = ib[6]
@@ -239,29 +256,43 @@ f_face = zeros(nx, nu, nv, nw, 2)
 f_interaction = zeros(nface, nu, nv, nw)
 rhs1 = zeros(nx, nu, nv, nw, nsp)
 
-dt = cfl * dx / (u1 + ib[2][2] + sqrt(5/6))
+dt = cfl * dx / (u1 + ib[2][2] + sqrt(5 / 6))
 tspan = (0.0, 200.0)
 nt = floor(tspan[2] / dt) |> Int
 
-p = (Q, f, f_face, f_interaction, rhs1,
-    pspace.dx, vspace.u, vspace.v, vspace.w, vspace.weights, δ, 
-    kn_bzm, 5, phi, psi, phipsi, ll, lr, lpdm, dgl, dgr)
+p = (
+    Q,
+    f,
+    f_face,
+    f_interaction,
+    rhs1,
+    pspace.dx,
+    vspace.u,
+    vspace.v,
+    vspace.w,
+    vspace.weights,
+    δ,
+    kn_bzm,
+    5,
+    phi,
+    psi,
+    phipsi,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr,
+)
 
 prob = ODEProblem(boltzmann!, u0, tspan, p)
 #prob = remake(prob, u0 = itg.u, tspan = tspan, p = p)
 
-itg = init(
-    prob,
-    Euler(),
-    save_everystep = false,
-    adaptive = false,
-    dt = dt,
-)
+itg = init(prob, Euler(), save_everystep = false, adaptive = false, dt = dt)
 
 @showprogress for iter = 1:nt
     step!(itg)
 
-    if iter%1000 == 0
+    if iter % 1000 == 0
         file = "shock_" * string(iter) * ".jld2"
         @save file itg
     end
@@ -270,9 +301,10 @@ end
 cd(@__DIR__)
 @load "shock_25000.jld2" itg
 @showprogress for iter = 1:100
-#    step!(itg)
+    #    step!(itg)
 end
 
+#=
 begin
     x = zeros(nx * nsp)
     w = zeros(nx * nsp, 5)

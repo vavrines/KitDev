@@ -63,13 +63,13 @@ res = zero(ks.ib.wL)
 @showprogress for iter = 1:50#nt
     reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-    
+
     # horizontal flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx
             w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
             sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
-            gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+            gra = (sw[:, 1] .^ 2 + sw[:, 2] .^ 2) .^ 0.5
             prim = conserve_prim(w, ks.gas.γ)
             tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
             regime = nn([w; gra; tau]) |> onecold
@@ -78,8 +78,8 @@ res = zero(ks.ib.wL)
                 flux_gks!(
                     a1face[i, j].fw,
                     a1face[i, j].ff,
-                    ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j]/2,
-                    ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j]/2,
+                    ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j] / 2,
+                    ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j] / 2,
                     ks.vSpace.u,
                     ks.vSpace.v,
                     ks.gas.K,
@@ -87,8 +87,8 @@ res = zero(ks.ib.wL)
                     ks.gas.μᵣ,
                     ks.gas.ω,
                     dt,
-                    ks.ps.dx[i-1, j]/2,
-                    ks.ps.dx[i, j]/2,
+                    ks.ps.dx[i-1, j] / 2,
+                    ks.ps.dx[i, j] / 2,
                     a1face[i, j].len,
                     ctr[i-1, j].sw[:, 1],
                     ctr[i, j].sw[:, 1],
@@ -108,7 +108,7 @@ res = zero(ks.ib.wL)
             end
         end
     end
-    
+
     # vertical flux
     vn = ks.vSpace.v
     vt = -ks.vSpace.u
@@ -116,22 +116,22 @@ res = zero(ks.ib.wL)
         for i = 1:ks.pSpace.nx
             w = (ctr[i, j-1].w .+ ctr[i, j].w) ./ 2
             sw = (ctr[i, j-1].sw .+ ctr[i, j].sw) ./ 2
-            gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+            gra = (sw[:, 1] .^ 2 + sw[:, 2] .^ 2) .^ 0.5
             prim = conserve_prim(w, ks.gas.γ)
             tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
             regime = nn([w; gra; tau]) |> onecold
 
-            wL = KitBase.local_frame(ctr[i, j-1].w, 0., 1.)
-            wR = KitBase.local_frame(ctr[i, j].w, 0., 1.)
-            swL = KitBase.local_frame(ctr[i, j-1].sw[:, 2], 0., 1.)
-            swR = KitBase.local_frame(ctr[i, j].sw[:, 2], 0., 1.)
+            wL = KitBase.local_frame(ctr[i, j-1].w, 0.0, 1.0)
+            wR = KitBase.local_frame(ctr[i, j].w, 0.0, 1.0)
+            swL = KitBase.local_frame(ctr[i, j-1].sw[:, 2], 0.0, 1.0)
+            swR = KitBase.local_frame(ctr[i, j].sw[:, 2], 0.0, 1.0)
 
             if regime == 1
                 flux_gks!(
                     a2face[i, j].fw,
                     a2face[i, j].ff,
-                    wL .+ swL .* ks.ps.dy[i, j-1]/2,
-                    wR .- swR .* ks.ps.dy[i, j]/2,
+                    wL .+ swL .* ks.ps.dy[i, j-1] / 2,
+                    wR .- swR .* ks.ps.dy[i, j] / 2,
                     vn,
                     vt,
                     ks.gas.K,
@@ -139,8 +139,8 @@ res = zero(ks.ib.wL)
                     ks.gas.μᵣ,
                     ks.gas.ω,
                     dt,
-                    ks.ps.dy[i, j-1]/2,
-                    ks.ps.dy[i, j]/2,
+                    ks.ps.dy[i, j-1] / 2,
+                    ks.ps.dy[i, j] / 2,
                     a2face[i, j].len,
                     swL,
                     swR,
@@ -159,10 +159,10 @@ res = zero(ks.ib.wL)
                 )
             end
 
-            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0., 1.)
+            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0.0, 1.0)
         end
     end
-    
+
     # boundary flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         KitBase.flux_boundary_maxwell!(
@@ -175,7 +175,7 @@ res = zero(ks.ib.wL)
             ks.vSpace.weights,
             dt,
             ctr[1, j].dy,
-            1.,
+            1.0,
         )
 
         KitBase.flux_boundary_maxwell!(
@@ -188,10 +188,10 @@ res = zero(ks.ib.wL)
             ks.vSpace.weights,
             dt,
             ctr[ks.pSpace.nx, j].dy,
-            -1.,
+            -1.0,
         )
     end
-    
+
     @inbounds Threads.@threads for i = 1:ks.pSpace.nx
         KitBase.flux_boundary_maxwell!(
             a2face[i, 1].fw,
@@ -205,12 +205,12 @@ res = zero(ks.ib.wL)
             ctr[i, 1].dx,
             1,
         )
-        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0., 1.)
-        
+        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0.0, 1.0)
+
         KitBase.flux_boundary_maxwell!(
             a2face[i, ks.pSpace.ny+1].fw,
             a2face[i, ks.pSpace.ny+1].ff,
-            [1., 0.0, -0.15, 1.0],
+            [1.0, 0.0, -0.15, 1.0],
             ctr[i, ks.pSpace.ny].f,
             vn,
             vt,
@@ -219,14 +219,20 @@ res = zero(ks.ib.wL)
             ctr[i, ks.pSpace.ny].dy,
             -1,
         )
-        a2face[i, ks.pSpace.ny+1].fw .= KitBase.global_frame(
-            a2face[i, ks.pSpace.ny+1].fw,
-            0.,
-            1.,
-        )
+        a2face[i, ks.pSpace.ny+1].fw .=
+            KitBase.global_frame(a2face[i, ks.pSpace.ny+1].fw, 0.0, 1.0)
     end
-    
-    update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
+
+    update!(
+        ks,
+        ctr,
+        a1face,
+        a2face,
+        dt,
+        res;
+        coll = Symbol(ks.set.collision),
+        bc = Symbol(ks.set.boundary),
+    )
 
     t += dt
 end
@@ -238,7 +244,7 @@ for j = 1:ks.pSpace.ny
     for i = 2:ks.pSpace.nx
         w = (ctr[i-1, j].w .+ ctr[i, j].w) ./ 2
         sw = (ctr[i-1, j].sw .+ ctr[i, j].sw) ./ 2
-        gra = (sw[:, 1].^2 + sw[:, 2].^2).^0.5
+        gra = (sw[:, 1] .^ 2 + sw[:, 2] .^ 2) .^ 0.5
         prim = conserve_prim(w, ks.gas.γ)
         tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
         regime = nn([w; gra; tau]) |> onecold

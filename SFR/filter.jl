@@ -33,12 +33,12 @@ function KitBase.filter_exp!(u::AbstractMatrix{T}, args...) where {T<:AbstractFl
         spy = spx
     end
     if length(args) >= 3
-	lamdt = args[3]
+        lamdt = args[3]
     else
-	lamdt = 1
+        lamdt = 1
     end
 
-    σ = filter_exp2d(nx-1, nz-1, spx,spy).^lamdt
+    σ = filter_exp2d(nx - 1, nz - 1, spx, spy) .^ lamdt
 
     for j in axes(u, 2), i in axes(u, 1)
         u[i, j] *= σ[i, j]
@@ -54,8 +54,9 @@ function filter_exp2d(Nx, Ny, spx, spy, Nc = 0)
     for i = 0:Nx
         for j = 0:Ny
             if i + j >= Nc
-     		#filterdiag[i+1, j+1] = exp(-alpha * ((i + j - Nc) / (Nx + Ny - Nc))^sp)
-		filterdiag[i+1, j+1] = exp(-alpha * ((i/(Nx+1))^spx + (j/(Ny+1))^spy))
+                #filterdiag[i+1, j+1] = exp(-alpha * ((i + j - Nc) / (Nx + Ny - Nc))^sp)
+                filterdiag[i+1, j+1] =
+                    exp(-alpha * ((i / (Nx + 1))^spx + (j / (Ny + 1))^spy))
             end
         end
     end
@@ -78,16 +79,16 @@ function KitBase.filter_houli!(u::AbstractMatrix{T}, args...) where {T<:Abstract
         Ncξ = 0
     end
 
-    σ1 = FR.filter_exp1d(nx-1, λx, Ncx)
-    σ2 = FR.filter_exp1d(nz-1, λξ, Ncξ)
+    σ1 = FR.filter_exp1d(nx - 1, λx, Ncx)
+    σ2 = FR.filter_exp1d(nz - 1, λξ, Ncξ)
 
     for i in eachindex(σ1)
-        if i/length(σ1) <= 2/3
+        if i / length(σ1) <= 2 / 3
             σ1[i] = 1.0
         end
     end
     for i in eachindex(σ2)
-        if i/length(σ2) <= 2/3
+        if i / length(σ2) <= 2 / 3
             σ2[i] = 1.0
         end
     end
@@ -105,14 +106,16 @@ begin # compute L1 norms of basis
     nMoments = uq.nm + 1
 
     NxHat = 100
-    xHat = collect(range(-1,stop = 1,length = NxHat))
-    dxHat = xHat[2]-xHat[1];
-    PhiL1 = zeros(nLocal,nMoments)
+    xHat = collect(range(-1, stop = 1, length = NxHat))
+    dxHat = xHat[2] - xHat[1]
+    PhiL1 = zeros(nLocal, nMoments)
     for i = 1:nLocal
         for j = 1:nMoments
-            PhiJ = sum(@. abs(uq.op.quad.weights * uq.phiRan[:, j])) / (uq.t2Product[j-1, j-1] + 1.e-7)
-            PhiI = dxHat*sum(abs.(JacobiP(xHat, 0, 0, i-1)))
-            PhiL1[i,j] = PhiI*PhiJ
+            PhiJ =
+                sum(@. abs(uq.op.quad.weights * uq.phiRan[:, j])) /
+                (uq.t2Product[j-1, j-1] + 1.e-7)
+            PhiI = dxHat * sum(abs.(JacobiP(xHat, 0, 0, i - 1)))
+            PhiL1[i, j] = PhiI * PhiJ
         end
     end
 end

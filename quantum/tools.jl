@@ -7,7 +7,7 @@ using NonlinearSolve, SciMLNLSolve
 
 Bose-Einstein integral
 """
-be_integral(ν, z) = polylog(ν+1, z) |> real
+be_integral(ν, z) = polylog(ν + 1, z) |> real
 
 
 """
@@ -15,7 +15,7 @@ be_integral(ν, z) = polylog(ν+1, z) |> real
 
 Fermi-Dirac integral
 """
-fd_integral(ν, z) = -polylog(ν+1, -z) |> real
+fd_integral(ν, z) = -polylog(ν + 1, -z) |> real
 
 
 function be_equilibrium(u, prim, β)
@@ -55,7 +55,7 @@ function quantum_prim_conserve(prim, β)
 
     w[1] = fd_integral(-0.5, prim[1]) * β / sqrt(prim[3])
     w[2] = w[1] * prim[2]
-    w[3] = fd_integral(0.5, prim[1]) * β / (prim[3])^(3/2) / 4 + 0.5 * w[1] * prim[2]^2
+    w[3] = fd_integral(0.5, prim[1]) * β / (prim[3])^(3 / 2) / 4 + 0.5 * w[1] * prim[2]^2
 
     return w
 end

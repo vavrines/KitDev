@@ -10,7 +10,11 @@ function recon_pdf(ks, prim, swx, swy)
     Mu, Mv, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
     a = pdf_slope(prim, swx, ks.gas.K)
     b = pdf_slope(prim, swy, ks.gas.K)
-    sw = -prim[1] .* (moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+ moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1))
+    sw =
+        -prim[1] .* (
+            moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+
+            moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1)
+        )
     A = pdf_slope(prim, sw, ks.gas.K)
     tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
 
@@ -29,17 +33,17 @@ begin
     ps = CSpace2D(1.0, 6.0, 30, 0.0, π, 50, 1, 1)
     vs = VSpace2D(-10.0, 10.0, 48, -10.0, 10.0, 48)
     gas = Gas(Kn = 1e-2, Ma = 5.0, K = 1.0)
-    
+
     prim0 = [1.0, 0.0, 0.0, 1.0]
     prim1 = [1.0, gas.Ma * sound_speed(1.0, gas.γ), 0.0, 1.0]
     fw = (args...) -> prim_conserve(prim1, gas.γ)
-    ff = function(args...)
+    ff = function (args...)
         prim = conserve_prim(fw(args...), gas.γ)
         h = maxwellian(vs.u, vs.v, prim)
         b = h .* gas.K / 2 / prim[end]
         return h, b
     end
-    bc = function(x, y)
+    bc = function (x, y)
         if abs(x^2 + y^2 - 1) < 1e-3
             return prim0
         else
@@ -103,7 +107,7 @@ for j = 1:ks.pSpace.nθ
         dy1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.y[i+1, j] - ks.ps.y[i-1, j])
         dx2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.x[i, j+1] - ks.ps.x[i, j-1])
         dy2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (ks.ps.y[i, j+1] - ks.ps.y[i, j-1])
-        
+
         cs = (dx1, dx2) -> (dx1 + dx2) ./ 2
         swx = cs(dx1, dx2)
         swy = cs(dy1, dy2)
@@ -116,13 +120,4 @@ for j = 1:ks.pSpace.nθ
     end
 end
 
-contourf(
-    ps.x[1:ks.ps.nr, 1:ks.ps.nθ],
-    ps.y[1:ks.ps.nr, 1:ks.ps.nθ],
-    rmap,
-    ratio = 1,
-)
-
-
-
-
+contourf(ps.x[1:ks.ps.nr, 1:ks.ps.nθ], ps.y[1:ks.ps.nr, 1:ks.ps.nθ], rmap, ratio = 1)

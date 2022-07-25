@@ -60,8 +60,8 @@ function ODEGalerkinTen(du, u, p, t)
         for i = 1:unum
             du[m+1, i] = (
                 g0[i] * p[m+1] - sum(
-                    p[j+1] * u[k+1, i] * t3.get([j, k, m]) / t2.get([m, m])
-                    for j = 0:L for k = 0:L
+                    p[j+1] * u[k+1, i] * t3.get([j, k, m]) / t2.get([m, m]) for j = 0:L
+                    for k = 0:L
                 )
             )
         end
@@ -69,13 +69,8 @@ function ODEGalerkinTen(du, u, p, t)
 end
 
 probGalerkinTen = ODEProblem(ODEGalerkinTen, finit, (0, tend), a)
-solGalerkinTen = solve(
-    probGalerkinTen,
-    Tsit5(),
-    abstol = 1e-10,
-    reltol = 1e-10,
-    saveat = 0:Δt:tend,
-)
+solGalerkinTen =
+    solve(probGalerkinTen, Tsit5(), abstol = 1e-10, reltol = 1e-10, saveat = 0:Δt:tend)
 
 #--- analysis ---#
 solTen = zeros(tnum, L + 1, unum)
@@ -92,11 +87,9 @@ for i = 1:tnum
     end
 end
 
-erL1Mean =
-    sum(abs.(fMeanExa .- fMeanNum)) .* Δt .* (vSpace.u[unum] - vSpace.u[unum-1])
-erL2Mean = sqrt(sum(
-    ((fMeanExa .- fMeanNum) .* Δt .* (vSpace.u[unum] - vSpace.u[unum-1])) .^ 2,
-))
+erL1Mean = sum(abs.(fMeanExa .- fMeanNum)) .* Δt .* (vSpace.u[unum] - vSpace.u[unum-1])
+erL2Mean =
+    sqrt(sum(((fMeanExa .- fMeanNum) .* Δt .* (vSpace.u[unum] - vSpace.u[unum-1])) .^ 2))
 
 contour(vSpace.u, tSpace, fMeanNum, fill = true)
 contour(vSpace.u, tSpace, fStdNum, fill = true)

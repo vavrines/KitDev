@@ -7,7 +7,7 @@ Y = Float32.([1.0, 0.0])
 function init_field!(ks, ctr, a1face, a2face)
     for i in eachindex(ctr)
         prim = [2.0 * rand(), 0.0, 0.0, 1 / rand()]
-    
+
         ctr[i].prim .= prim
         ctr[i].w .= prim_conserve(prim, ks.gas.γ)
         ctr[i].f .= maxwellian(ks.vs.u, ks.vs.v, prim)
@@ -26,14 +26,18 @@ function regime_data(ks, w, prim, swx, swy, f)
     Mu, Mv, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
     a = pdf_slope(prim, swx, ks.gas.K)
     b = pdf_slope(prim, swy, ks.gas.K)
-    sw = -prim[1] .* (moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+ moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1))
+    sw =
+        -prim[1] .* (
+            moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+
+            moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1)
+        )
     A = pdf_slope(prim, sw, ks.gas.K)
     tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
-    
+
     fr = chapman_enskog(ks.vs.u, ks.vs.v, prim, a, b, A, tau)
     L = norm((f .- fr) ./ prim[1])
 
-    sw = (swx.^2 + swy.^2).^0.5
+    sw = (swx .^ 2 + swy .^ 2) .^ 0.5
     x = [w; sw; tau]
     y = ifelse(L <= 0.005, [1.0, 0.0], [0.0, 1.0])
 
@@ -96,7 +100,7 @@ for loop = 1:10
     nt = Int(ks.set.maxTime ÷ dt) + 1
     res = zeros(4)
     @showprogress for iter = 1:1000#nt
-        if iter%39 == 0
+        if iter % 39 == 0
             for j = 1:ks.ps.ny, i = 1:ks.ps.nx
                 swx = (ctr[i+1, j].w .- ctr[i-1, j].w) / ks.ps.dx[i, j] / 2.0
                 swy = (ctr[i, j+1].w .- ctr[i, j-1].w) / ks.ps.dy[i, j] / 2.0
@@ -105,10 +109,27 @@ for loop = 1:10
                 Y = hcat(Y, y)
             end
         end
-        
+
         reconstruct!(ks, ctr)
-        evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-        update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
+        evolve!(
+            ks,
+            ctr,
+            a1face,
+            a2face,
+            dt;
+            mode = Symbol(ks.set.flux),
+            bc = Symbol(ks.set.boundary),
+        )
+        update!(
+            ks,
+            ctr,
+            a1face,
+            a2face,
+            dt,
+            res;
+            coll = Symbol(ks.set.collision),
+            bc = Symbol(ks.set.boundary),
+        )
 
         t += dt
     end
@@ -124,7 +145,7 @@ function split_dataset(X, Y, ratio = 9::Integer)
     x_test = [X[:, j] for j in idx2]
     y_train = [Y[:, j] for j in idx1]
     y_test = [Y[:, j] for j in idx2]
-    
+
     X_train = zeros(eltype(X), size(X, 1), length(x_train))
     Y_train = zeros(eltype(X), size(Y, 1), length(x_train))
     X_test = zeros(eltype(X), size(X, 1), length(x_test))

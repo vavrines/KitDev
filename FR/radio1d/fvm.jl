@@ -13,7 +13,7 @@ set = Setup(
 
 ps = PSpace1D(0, 1, 100)
 vs = VSpace1D(-1, 1, 28)
-gas = Radiation(Kn=1.0)
+gas = Radiation(Kn = 1.0)
 ib = IB1F(zeros, (x...) -> ones(Float64, vs.nu) .* 1e-3, 1e-3)
 ks = SolverSet(set, ps, vs, gas, ib)
 
@@ -21,11 +21,7 @@ f0 = ks.ib.ff()
 ctr = Array{ControlVolume1D1F}(undef, ps.nx)
 face = Array{Interface1D1F}(undef, ps.nx + 1)
 for i in eachindex(ctr)
-    ctr[i] = ControlVolume1D1F(
-        [sum(vs.weights .* f0)],
-        [sum(vs.weights .* f0)],
-        ks.ib.ff(),
-    )
+    ctr[i] = ControlVolume1D1F([sum(vs.weights .* f0)], [sum(vs.weights .* f0)], ks.ib.ff())
 end
 for i = 1:ks.pSpace.nx+1
     face[i] = Interface1D1F(sum(vs.weights .* f0), ks.ib.ff())
@@ -62,26 +58,13 @@ function step(
     w[1] = sum(weights .* f)
 end
 
-dt = set.cfl * ps.dx[1] 
+dt = set.cfl * ps.dx[1]
 nt = set.maxTime / dt |> floor |> Int
 
 @showprogress for iter = 1:150#nt
-    fb!(
-        face[1].ff,
-        ctr[1].f,
-        vs.u,
-        dt,
-    )
+    fb!(face[1].ff, ctr[1].f, vs.u, dt)
     @inbounds for i = 2:ps.nx
-        flux_kfvs!(
-            face[i].ff,
-            ctr[i-1].f,
-            ctr[i].f,
-            vs.u,
-            dt,
-            ctr[i-1].sf,
-            ctr[i].sf,
-        )
+        flux_kfvs!(face[i].ff, ctr[i-1].f, ctr[i].f, vs.u, dt, ctr[i-1].sf, ctr[i].sf)
     end
 
     @inbounds for i = 1:ps.nx-1

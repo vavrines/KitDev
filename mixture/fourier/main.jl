@@ -21,14 +21,7 @@ function ib_condition(set, ps, vs, gas, T = (1.0, 0.8), P = 1.0)
     primR[3, 1] = gas.mi / T[2]
     primR[3, 2] = gas.me / T[2]
 
-    p = (
-        x0 = ps.x0,
-        x1 = ps.x1,
-        primL = primL,
-        primR = primR,
-        γ = gas.γ,
-        u = vs.u,
-    )
+    p = (x0 = ps.x0, x1 = ps.x1, primL = primL, primR = primR, γ = gas.γ, u = vs.u)
 
     fw = function (x, p)
         prim = zeros(3, 2)
@@ -82,15 +75,15 @@ begin
     nt = Int(floor(ks.set.maxTime / dt))
 end
 
-@showprogress for iter = 1:nt * 20
+@showprogress for iter = 1:nt*20
     reconstruct!(ks, ctr)
     evolve!(ks, ctr, face, dt)
     update!(ks, ctr, face, dt, res; bc = :maxwell)
 
-    if iter%2000 == 0
+    if iter % 2000 == 0
         println("")
         @show res
-        
+
         if maximum(res) < 5.e-7
             break
         end

@@ -69,7 +69,7 @@ res = zeros(4)
             )
         end
     end
-    
+
     # vertical flux
     vn = ks.vSpace.v
     vt = -ks.vSpace.u
@@ -89,10 +89,10 @@ res = zeros(4)
                 dt,
                 a2face[i, j].len,
             )
-            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0., 1.)
+            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0.0, 1.0)
         end
     end
-    
+
     # boundary flux    
     @inbounds Threads.@threads for i = 1:ks.pSpace.nx
         KitBase.flux_boundary_maxwell!(
@@ -110,8 +110,8 @@ res = zeros(4)
             ctr[i, 1].dx,
             1,
         )
-        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0., 1.)
-        
+        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0.0, 1.0)
+
         KitBase.flux_boundary_maxwell!(
             a2face[i, ks.pSpace.ny+1].fw,
             a2face[i, ks.pSpace.ny+1].fh,
@@ -127,14 +127,20 @@ res = zeros(4)
             ctr[i, ks.pSpace.ny].dy,
             -1,
         )
-        a2face[i, ks.pSpace.ny+1].fw .= KitBase.global_frame(
-            a2face[i, ks.pSpace.ny+1].fw,
-            0.,
-            1.,
-        )
+        a2face[i, ks.pSpace.ny+1].fw .=
+            KitBase.global_frame(a2face[i, ks.pSpace.ny+1].fw, 0.0, 1.0)
     end
 
-    update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
+    update!(
+        ks,
+        ctr,
+        a1face,
+        a2face,
+        dt,
+        res;
+        coll = Symbol(ks.set.collision),
+        bc = Symbol(ks.set.boundary),
+    )
     # inflow
     for j = 1:ks.pSpace.ny
         @. ctr[0, j].prim[2:3] = 2.0 * ctr[1, j].prim[2:3] - ctr[2, j].prim[2:3]
@@ -144,11 +150,14 @@ res = zeros(4)
     end
     # outflow
     for j = 1:ks.pSpace.ny
-        @. ctr[ks.pSpace.nx+1, j].prim[1:3] = 2.0 * ctr[ks.pSpace.nx, j].prim[1:3] - ctr[ks.pSpace.nx-1, j].prim[1:3]
+        @. ctr[ks.pSpace.nx+1, j].prim[1:3] =
+            2.0 * ctr[ks.pSpace.nx, j].prim[1:3] - ctr[ks.pSpace.nx-1, j].prim[1:3]
         ctr[ks.pSpace.nx+1, j].prim[4] = ctr[ks.pSpace.nx+1, j].prim[1] / 2.0 / 0.25
         ctr[ks.pSpace.nx+1, j].w .= prim_conserve(ctr[ks.pSpace.nx+1, j].prim, ks.gas.γ)
-        ctr[ks.pSpace.nx+1, j].h .= KitBase.maxwellian(ks.vSpace.u, ks.vSpace.v, ctr[ks.pSpace.nx+1, j].prim)
-        ctr[ks.pSpace.nx+1, j].b = @. ctr[ks.pSpace.nx+1, j].h * ks.gas.K / 2.0 / ctr[ks.pSpace.nx+1, j].prim[end]
+        ctr[ks.pSpace.nx+1, j].h .=
+            KitBase.maxwellian(ks.vSpace.u, ks.vSpace.v, ctr[ks.pSpace.nx+1, j].prim)
+        ctr[ks.pSpace.nx+1, j].b =
+            @. ctr[ks.pSpace.nx+1, j].h * ks.gas.K / 2.0 / ctr[ks.pSpace.nx+1, j].prim[end]
     end
 end
 

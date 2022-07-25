@@ -18,7 +18,7 @@ function dudt!(du, u, p, t)
         positive_limiter(tmp, γ, ps.wp ./ 2, uq.op.quad.weights, ll, lr, 1.0)
     end
 
-    f = zeros(ncell, nsp, 3, nm+1)
+    f = zeros(ncell, nsp, 3, nm + 1)
     for i = 1:ncell, j = 1:nsp
         _f = zeros(3, nq)
         for k = 1:nq
@@ -30,7 +30,7 @@ function dudt!(du, u, p, t)
         end
     end
 
-    f_face = zeros(ncell, 3, nm+1, 2)
+    f_face = zeros(ncell, 3, nm + 1, 2)
     for i = 1:ncell, j = 1:3, k = 1:nm+1
         f_face[i, j, k, 1] = dot(f[i, :, j, k], lr)
         f_face[i, j, k, 2] = dot(f[i, :, j, k], ll)
@@ -79,7 +79,7 @@ function dudt!(du, u, p, t)
         flux_hll!(fw, u_face[i-1, :, j, 1], u_face[i, :, j, 2], γ, 1.0)
     end
 
-    f_interaction = zeros(ncell + 1, 3, nm+1)
+    f_interaction = zeros(ncell + 1, 3, nm + 1)
     for i = 2:ncell, j = 1:3
         f_interaction[i, j, :] .= ran_chaos(fq_interaction[i, j, :], uq)
     end
@@ -91,11 +91,10 @@ function dudt!(du, u, p, t)
 
     idx = 2:ncell-1 # ending points are Dirichlet
     for i in idx, ppp1 = 1:nsp, k = 1:3, l = 1:nm+1
-        du[i, ppp1, k, l] =
-            -(
-                rhs1[i, ppp1, k, l] +
-                (f_interaction[i, k, l] / J[i] - f_face[i, k, l, 2]) * dgl[ppp1] +
-                (f_interaction[i+1, k, l] / J[i] - f_face[i, k, l, 1]) * dgr[ppp1]
-            )
+        du[i, ppp1, k, l] = -(
+            rhs1[i, ppp1, k, l] +
+            (f_interaction[i, k, l] / J[i] - f_face[i, k, l, 2]) * dgl[ppp1] +
+            (f_interaction[i+1, k, l] / J[i] - f_face[i, k, l, 1]) * dgr[ppp1]
+        )
     end
 end

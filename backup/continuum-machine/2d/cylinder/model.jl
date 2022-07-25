@@ -51,7 +51,7 @@ end
         swy2 = (ctr[i, j+1].w - ctr[i, j-1].w) / (1e-6 + ks.ps.y[i, j+1] - ks.ps.y[i, j-1])
         swx = (swx1 + swx2) ./ 2
         swy = (swy1 + swy2) ./ 2
-        sw = sqrt.(swx.^2 + swy.^2)
+        sw = sqrt.(swx .^ 2 + swy .^ 2)
         tau = vhs_collision_time(ctr[i, j].prim, ks.gas.μᵣ, ks.gas.ω)
 
         rmap[i, j] = nn([ctr[i, j].w; sw; tau]) |> onecold

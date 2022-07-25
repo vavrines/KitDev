@@ -34,8 +34,7 @@ sol1 = solve(prob1, Midpoint(), saveat = tsteps) |> Array
 
 begin
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f",
-    title = "")
+    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f", title = "")
     lines!(vs.u, sol[:, 11]; label = "quantum")
     lines!(vs.u, sol1[:, 11]; label = "classical", linestyle = :dash)
     lines!(vs.u, F0; label = "equilibrium")
@@ -45,8 +44,7 @@ end
 
 begin
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f",
-    title = "")
+    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f", title = "")
     lines!(vs.u, sol[:, 21]; label = "quantum")
     lines!(vs.u, sol1[:, 21]; label = "classical", linestyle = :dash)
     lines!(vs.u, F0; label = "equilibrium")

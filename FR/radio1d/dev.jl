@@ -60,8 +60,8 @@ function mol!(du, u, p, t)
         end
     end
 
-    u_interaction = zeros(eltype(u), ncell+1, nu)
-    f_interaction = zeros(eltype(u), ncell+1, nu)
+    u_interaction = zeros(eltype(u), ncell + 1, nu)
+    f_interaction = zeros(eltype(u), ncell + 1, nu)
     @inbounds @threads for i = 2:ncell
         @. u_interaction[i, :] = u_face[i, :, 1] * (1.0 - δ) + u_face[i-1, :, 2] * δ
         @. f_interaction[i, :] = f_face[i, :, 1] * (1.0 - δ) + f_face[i-1, :, 2] * δ
@@ -100,8 +100,7 @@ u0 = ones(Float64, ps.nx, vs.nu, nsp) .* 1e-3
 tspan = (0.0, set.maxTime)
 dt = set.cfl * minimum(ps.dx) / (vs.u1 + 2)
 nt = floor(tspan[2] / dt) |> Int
-p = (ps.dx, vs.u, vs.weights, δ, knudsen, 
-    ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr)
+p = (ps.dx, vs.u, vs.weights, δ, knudsen, ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr)
 
 prob = ODEProblem(mol!, u0, tspan, p)
 itg = init(
@@ -120,7 +119,7 @@ itg = init(
     Threads.@threads for j = 1:vs.nu
         for i = 1:ps.nx
             ũ = ps.iV * itg.u[i, j, :]
-            su = ũ[end]^2 / sum(ũ.^2)
+            su = ũ[end]^2 / sum(ũ .^ 2)
             isShock = shock_detector(log10(su), ps.deg)
             if isShock
                 modal_filter!(ũ, ℓ; filter = :lasso)
@@ -149,5 +148,5 @@ begin
     end
 end
 
-plot(x[1:end], sol[1:end, 1], xlabel="x", ylabel="ρ")
+plot(x[1:end], sol[1:end, 1], xlabel = "x", ylabel = "ρ")
 scatter(x[1:end], sol[1:end, 1])

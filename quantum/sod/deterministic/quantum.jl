@@ -27,15 +27,7 @@ function ib_condition(set, ps, vs, gas)
     wL = quantum_prim_conserve(primL, β)
     wR = quantum_prim_conserve(primR, β)
 
-    p = (
-        x0 = ps.x0,
-        x1 = ps.x1,
-        wL = wL,
-        wR = wR,
-        primL = primL,
-        primR = primR,
-        β = gas.γ,
-    )
+    p = (x0 = ps.x0, x1 = ps.x1, wL = wL, wR = wR, primL = primL, primR = primR, β = gas.γ)
 
     fw = function (x, p)
         if x <= (p.x0 + p.x1) / 2
@@ -135,7 +127,7 @@ function update!(
     ctr::AbstractVector{TC},
     face::AbstractVector{TF},
     dt,
-    residual
+    residual,
 ) where {TC,TF}
 
     sumRes = zero(ctr[1].w)
@@ -159,7 +151,7 @@ function update!(
             sumAvg,
         )
     end
-    
+
     for i in eachindex(residual)
         residual[i] = sqrt(sumRes[i] * KS.pSpace.nx) / (sumAvg[i] + 1.e-7)
     end

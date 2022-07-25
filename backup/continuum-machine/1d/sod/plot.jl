@@ -84,26 +84,53 @@ begin
     for i = 1:ks.ps.nx
         sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
         L = abs(ctr[i].w[1] / sw[1])
-        ℓ = (1/ctr[i].prim[end])^ks.gas.ω / ctr[i].prim[1] * sqrt(ctr[i].prim[end]) * ks.gas.Kn
+        ℓ =
+            (1 / ctr[i].prim[end])^ks.gas.ω / ctr[i].prim[1] *
+            sqrt(ctr[i].prim[end]) *
+            ks.gas.Kn
 
         KnGLL[i] = ℓ / L
         rg_kn[i] = ifelse(KnGLL[i] >= 0.05, 2, 1)
     end
 end
 
-scatter(ks.ps.x[1:ks.ps.nx], rg_ce, alpha=0.7, label="NN", xlabel="x", ylabel="regime")
-scatter!(ks.ps.x[1:ks.ps.nx], rg_kn, alpha=0.7, label="KnGLL")
-plot!(ks.ps.x[1:ks.ps.nx], rg_ce, lw=1.5, line=:dot, color=:gray27, label="True", xlabel="x", ylabel="regime")
+scatter(
+    ks.ps.x[1:ks.ps.nx],
+    rg_ce,
+    alpha = 0.7,
+    label = "NN",
+    xlabel = "x",
+    ylabel = "regime",
+)
+scatter!(ks.ps.x[1:ks.ps.nx], rg_kn, alpha = 0.7, label = "KnGLL")
+plot!(
+    ks.ps.x[1:ks.ps.nx],
+    rg_ce,
+    lw = 1.5,
+    line = :dot,
+    color = :gray27,
+    label = "True",
+    xlabel = "x",
+    ylabel = "regime",
+)
 
 #savefig("kn4_regime.pdf")
 #savefig("kn3_regime.pdf")
 #savefig("kn2_regime.pdf")
 
-function curve(idx, s, lgd=:topright; ns=true)
-    fig = plot(ks.ps.x[idx], sols[1][idx, s], lw=1.5, label="NN", legend=lgd)
-    plot!(fig, ks.ps.x[idx], sols[2][idx, s], lw=1.5, line=:dash, label="KnGLL")
-    plot!(fig, ks.ps.x[idx], sols[3][idx, s], lw=1.5, line=:dashdot, label="Kinetic")    
-    ns && plot!(fig, ks.ps.x[idx], sols[4][idx, s], lw=2, line=:dot, color=:gray27, label="NS")
+function curve(idx, s, lgd = :topright; ns = true)
+    fig = plot(ks.ps.x[idx], sols[1][idx, s], lw = 1.5, label = "NN", legend = lgd)
+    plot!(fig, ks.ps.x[idx], sols[2][idx, s], lw = 1.5, line = :dash, label = "KnGLL")
+    plot!(fig, ks.ps.x[idx], sols[3][idx, s], lw = 1.5, line = :dashdot, label = "Kinetic")
+    ns && plot!(
+        fig,
+        ks.ps.x[idx],
+        sols[4][idx, s],
+        lw = 2,
+        line = :dot,
+        color = :gray27,
+        label = "NS",
+    )
 
     xlabel!(fig, "x")
     if s == 1

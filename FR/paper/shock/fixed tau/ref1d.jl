@@ -34,7 +34,7 @@ isNewStart = true
 if isNewStart
     u = zeros(nx, nu, nsp)
     for i = 1:nx, ppp1 = 1:nsp
-        if i <= nx÷2
+        if i <= nx ÷ 2
             _prim = ib[2]
         else
             _prim = ib[6]
@@ -50,9 +50,26 @@ else
 end
 
 function dudt!(du, u, p, t) # method of lines
-    M, f, u_face, f_face, u_interaction, f_interaction, rhs, τ,
-    dx, velo, weights, δ, ll, lr, lpdm, dgl, dgr,
-    gam, μᵣ, ω = p
+    M,
+    f,
+    u_face,
+    f_face,
+    u_interaction,
+    f_interaction,
+    rhs,
+    τ,
+    dx,
+    velo,
+    weights,
+    δ,
+    ll,
+    lr,
+    lpdm,
+    dgl,
+    dgr,
+    gam,
+    μᵣ,
+    ω = p
 
     ncell = length(dx)
     nu = length(velo)
@@ -64,7 +81,7 @@ function dudt!(du, u, p, t) # method of lines
             w = [
                 sum(@. weights * u[i, :, k]),
                 sum(@. weights * velo * u[i, :, k]),
-                0.5 * sum(@. weights * velo^2 * u[i, :, k])
+                0.5 * sum(@. weights * velo^2 * u[i, :, k]),
             ]
 
             prim = conserve_prim(w, gam)
@@ -81,7 +98,7 @@ function dudt!(du, u, p, t) # method of lines
         end
     end
 
-    
+
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:nu
             # right face of element i
@@ -94,13 +111,15 @@ function dudt!(du, u, p, t) # method of lines
         end
     end
 
-    
+
     @inbounds Threads.@threads for i = 2:nface-1
-        @. u_interaction[i, 1:nu] = u_face[i, 1:nu, 2] * (1.0 - δ) + u_face[i-1, 1:nu, 1] * δ
-        @. f_interaction[i, 1:nu] = f_face[i, 1:nu, 2] * (1.0 - δ) + f_face[i-1, 1:nu, 1] * δ
+        @. u_interaction[i, 1:nu] =
+            u_face[i, 1:nu, 2] * (1.0 - δ) + u_face[i-1, 1:nu, 1] * δ
+        @. f_interaction[i, 1:nu] =
+            f_face[i, 1:nu, 2] * (1.0 - δ) + f_face[i-1, 1:nu, 1] * δ
     end
 
-    
+
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:nu, ppp1 = 1:nsp
             rhs[i, j, ppp1] = dot(f[i, j, :], lpdm[ppp1, :])
@@ -126,16 +145,34 @@ begin
     f = zero(u)
     u_face = zeros(eltype(u), nx, nu, 2)
     f_face = zeros(eltype(u), nx, nu, 2)
-    u_interaction = zeros(eltype(u), nx+1, nu)
-    f_interaction = zeros(eltype(u), nx+1, nu)
+    u_interaction = zeros(eltype(u), nx + 1, nu)
+    f_interaction = zeros(eltype(u), nx + 1, nu)
     rhs = zeros(eltype(u), nx, nu, nsp)
     tau = zeros(nx, nsp)
 end
 
-p = (M, f, u_face, f_face, u_interaction, f_interaction, rhs, tau,
-    ps.dx, vs.u, vs.weights, δ,
-    ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr,
-    gas.γ, gas.μᵣ, gas.ω)
+p = (
+    M,
+    f,
+    u_face,
+    f_face,
+    u_interaction,
+    f_interaction,
+    rhs,
+    tau,
+    ps.dx,
+    vs.u,
+    vs.weights,
+    δ,
+    ps.ll,
+    ps.lr,
+    ps.dl,
+    ps.dhl,
+    ps.dhr,
+    gas.γ,
+    gas.μᵣ,
+    gas.ω,
+)
 
 prob = ODEProblem(dudt!, u, tspan, p)
 itg = init(

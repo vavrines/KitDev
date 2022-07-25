@@ -22,14 +22,7 @@ begin
         primR[3, 1] = gas.mi / T[2]
         primR[3, 2] = gas.me / T[2]
 
-        p = (
-            x0 = ps.x0,
-            x1 = ps.x1,
-            primL = primL,
-            primR = primR,
-            γ = gas.γ,
-            u = vs.u,
-        )
+        p = (x0 = ps.x0, x1 = ps.x1, primL = primL, primR = primR, γ = gas.γ, u = vs.u)
 
         fw = function (x, p)
             prim = zeros(3, 2)

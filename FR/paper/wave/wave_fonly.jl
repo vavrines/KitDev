@@ -41,8 +41,8 @@ for i = 1:nx, ppp1 = 1:nsp
     _ρ = 1.0 + 0.1 * sin(2.0 * π * pspace.xp[i, ppp1])
     _T = 2 * 0.5 / _ρ
 
-    w[i, :, ppp1] .= prim_conserve([_ρ, 1.0, 1.0/_T], 3.0)
-    f[i, :, ppp1] .= maxwellian(vspace.u, [_ρ, 1.0, 1.0/_T])
+    w[i, :, ppp1] .= prim_conserve([_ρ, 1.0, 1.0 / _T], 3.0)
+    f[i, :, ppp1] .= maxwellian(vspace.u, [_ρ, 1.0, 1.0 / _T])
 end
 
 e2f = zeros(Int, nx, 2)
@@ -85,7 +85,7 @@ function mol!(du, u, p, t) # method of lines
         w = [
             sum(@. weights * u[i, :, k]),
             sum(@. weights * velo * u[i, :, k]),
-            0.5 * sum(@. weights * velo^2 * u[i, :, k])
+            0.5 * sum(@. weights * velo^2 * u[i, :, k]),
         ]
 
         prim = conserve_prim(w, 3.0)
@@ -115,7 +115,7 @@ function mol!(du, u, p, t) # method of lines
     for i = 1:nface
         @. f_interaction[i, :] =
             f_face[f2e[i, 1], :, 2] * (1.0 - δ) + f_face[f2e[i, 2], :, 1] * δ
-            #(f_face[f2e[i, 1], :, 2] + f_face[f2e[i, 2], :, 1]) / 2
+        #(f_face[f2e[i, 1], :, 2] + f_face[f2e[i, 2], :, 1]) / 2
     end
 
     rhs1 = zeros(eltype(u), ncell, nu, nsp)
@@ -169,7 +169,11 @@ begin
 
             w[idx, :] .= moments_conserve(sol.u[end][i, :, j], vspace.u, vspace.weights)
             prim[idx, :] .= conserve_prim(w[idx, :], 3.0)
-            prim0[idx, :] .= [1.0 + 0.1 * sin(2.0 * π * x[idx]), 1.0, 2 * 0.5 / (1.0 + 0.1 * sin(2.0 * π * x[idx]))]
+            prim0[idx, :] .= [
+                1.0 + 0.1 * sin(2.0 * π * x[idx]),
+                1.0,
+                2 * 0.5 / (1.0 + 0.1 * sin(2.0 * π * x[idx])),
+            ]
         end
     end
 end

@@ -28,7 +28,7 @@ end
 
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
 
-u = zeros(ncell, nsp, uq.nm+1)
+u = zeros(ncell, nsp, uq.nm + 1)
 for i = 1:ncell, j = 1:nsp
     u[i, j, :] .= uq.pce * sin(2π * ps.xpg[i, j])
 end
@@ -48,7 +48,7 @@ function dudt!(du, u, p, t)
         u_ran[i, j, :] .= chaos_ran(u[i, j, :], uq)
     end
 
-    f = zeros(ncell, nsp, nm+1)
+    f = zeros(ncell, nsp, nm + 1)
     for i = 1:ncell, j = 1:nsp
         _f = zeros(nq)
         for k = 1:nq
@@ -58,8 +58,8 @@ function dudt!(du, u, p, t)
         f[i, j, :] .= ran_chaos(_f, uq)
     end
 
-    u_face = zeros(ncell, nm+1, 2)
-    f_face = zeros(ncell, nm+1, 2)
+    u_face = zeros(ncell, nm + 1, 2)
+    f_face = zeros(ncell, nm + 1, 2)
     for i = 1:ncell, k = 1:nm+1
         u_face[i, k, 1] = dot(u[i, :, k], lr)
         f_face[i, k, 1] = dot(f[i, :, k], lr)
@@ -67,14 +67,17 @@ function dudt!(du, u, p, t)
         f_face[i, k, 2] = dot(f[i, :, k], ll)
     end
 
-    f_interaction = zeros(ncell + 1, nm+1)
+    f_interaction = zeros(ncell + 1, nm + 1)
     for i = 2:ncell
-        f_interaction[i, :] .= (f_face[i-1, :, 1] .+ f_face[i, :, 2]) ./ 2 - 
+        f_interaction[i, :] .=
+            (f_face[i-1, :, 1] .+ f_face[i, :, 2]) ./ 2 -
             (Δx[i-1] + Δx[i]) / 2 * (u_face[i, :, 2] .- u_face[i-1, :, 1])
     end
-    f_interaction[1, :] .= (f_face[ncell, :, 1] .+ f_face[1, :, 2]) ./ 2 - 
+    f_interaction[1, :] .=
+        (f_face[ncell, :, 1] .+ f_face[1, :, 2]) ./ 2 -
         (Δx[ncell] + Δx[1]) / 2 * (u_face[1, :, 2] .- u_face[ncell, :, 1])
-    f_interaction[ncell+1, :] .= (f_face[ncell, :, 1] .+ f_face[1, :, 2]) ./ 2 - 
+    f_interaction[ncell+1, :] .=
+        (f_face[ncell, :, 1] .+ f_face[1, :, 2]) ./ 2 -
         (Δx[ncell] + Δx[1]) / 2 * (u_face[1, :, 2] .- u_face[ncell, :, 1])
 
     rhs1 = zero(u)
@@ -84,12 +87,11 @@ function dudt!(du, u, p, t)
 
     idx = 1:ncell
     for i in idx, ppp1 = 1:nsp, l = 1:nm+1
-        du[i, ppp1, l] =
-            -(
-                rhs1[i, ppp1, l] +
-                (f_interaction[i, l] - f_face[i, l, 2]) * dgl[ppp1] +
-                (f_interaction[i+1, l] - f_face[i, l, 1]) * dgr[ppp1]
-            )
+        du[i, ppp1, l] = -(
+            rhs1[i, ppp1, l] +
+            (f_interaction[i, l] - f_face[i, l, 2]) * dgl[ppp1] +
+            (f_interaction[i+1, l] - f_face[i, l, 1]) * dgr[ppp1]
+        )
     end
 end
 
@@ -109,9 +111,9 @@ for i in axes(sol, 1), j in axes(sol, 2)
     sol[i, j, 2] = std(itg.u[i, j, :], uq.op)
 end
 
-plot(ps.x, sol[:, 2, 1], label="mean", xlabel="x", ylabel="u")
-plot!(ps.x, sol[:, 2, 1] .+ sol[:, 2, 2], label="mean+std")
-plot!(ps.x, sol[:, 2, 1] .- sol[:, 2, 2], label="mean-std")
+plot(ps.x, sol[:, 2, 1], label = "mean", xlabel = "x", ylabel = "u")
+plot!(ps.x, sol[:, 2, 1] .+ sol[:, 2, 2], label = "mean+std")
+plot!(ps.x, sol[:, 2, 1] .- sol[:, 2, 2], label = "mean-std")
 
 cd(@__DIR__)
 savefig("burgers.pdf")

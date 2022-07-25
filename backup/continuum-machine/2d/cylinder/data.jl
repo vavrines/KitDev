@@ -17,17 +17,17 @@ begin
     ps = CSpace2D(1.0, 6.0, 30, 0.0, π, 50, 1, 1)
     vs = VSpace2D(-10.0, 10.0, 48, -10.0, 10.0, 48)
     gas = Gas(Kn = 1e-3, Ma = 4.0, K = 1.0)
-    
+
     prim0 = [1.0, 0.0, 0.0, 1.0]
     prim1 = [1.0, gas.Ma * sound_speed(1.0, gas.γ), 0.0, 1.0]
     fw = (args...) -> prim_conserve(prim1, gas.γ)
-    ff = function(args...)
+    ff = function (args...)
         prim = conserve_prim(fw(args...), gas.γ)
         h = maxwellian(vs.u, vs.v, prim)
         b = h .* gas.K / 2 / prim[end]
         return h, b
     end
-    bc = function(x, y)
+    bc = function (x, y)
         if abs(x^2 + y^2 - 1) < 1e-3
             return prim0
         else
@@ -59,7 +59,8 @@ res = zeros(4)
         ctr[ks.ps.nr+1, j].prim .= conserve_prim(ctr[ks.ps.nr+1, j].w, ks.gas.γ)
         ctr[ks.ps.nr+1, j].sw .= 0.0
         ctr[ks.ps.nr+1, j].h .= maxwellian(ks.vs.u, ks.vs.v, ctr[ks.ps.nr+1, j].prim)
-        ctr[ks.ps.nr+1, j].b .= ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
+        ctr[ks.ps.nr+1, j].b .=
+            ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
     end
 
     global t += dt
@@ -68,7 +69,7 @@ res = zeros(4)
         break
     end
 
-    if iter%1 == 0
+    if iter % 1 == 0
         for j = 1:ks.ps.nθ, i = 2:ks.ps.nr
             swx1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.x[i+1, j] - ks.ps.x[i-1, j])
             swy1 = (ctr[i+1, j].w - ctr[i-1, j].w) / (ks.ps.y[i+1, j] - ks.ps.y[i-1, j])

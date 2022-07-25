@@ -90,7 +90,7 @@ function flux_bz!(
     A<:AbstractArray{<:AbstractFloat,3},
     B<:AbstractArray{<:AbstractFloat,3},
 }
-    
+
     # upwind reconstruction
     δ = heaviside.(uVelo)
     f = @. fL * δ + fR * (1.0 - δ)
@@ -122,17 +122,11 @@ function flux_bz!(
     @. ff = dt * uVelo * f
 
     return nothing
-    
+
 end
 
-function evolve(
-    KS::SolverSet,
-    ctr::T1,
-    face::T2,
-    dt,
-    p,
-) where {T1,T2}
-    
+function evolve(KS::SolverSet, ctr::T1, face::T2, dt, p) where {T1,T2}
+
     if firstindex(KS.pSpace.x) < 1
         idx0 = 1
         idx1 = KS.pSpace.nx + 1
@@ -226,8 +220,7 @@ function step_bz!(
 
     #--- update distribution function ---#
     for k in axes(wVelo, 3), j in axes(vVelo, 2), i in axes(uVelo, 1)
-        f[i, j, k] += (ffL[i, j, k] - ffR[i, j, k]) / dx + 
-            dt * df[i, j, k]
+        f[i, j, k] += (ffL[i, j, k] - ffR[i, j, k]) / dx + dt * df[i, j, k]
     end
 
 end

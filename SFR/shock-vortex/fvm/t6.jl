@@ -22,7 +22,7 @@ begin
         1.1381581917106134, # Mach
         1.0,
         3.0, # K
-        7/5,
+        7 / 5,
         0.81,
         1.0,
         0.5,
@@ -39,12 +39,12 @@ for j in axes(ctr, 2), i in axes(ctr, 1)
     t1 = ib_rh(ks.gas.Ma, ks.gas.γ, rand(3))[2]
     t2 = ib_rh(ks.gas.Ma, ks.gas.γ, rand(3))[6]
 
-    if ps.x[i, j] <= ps.x1*0.25
+    if ps.x[i, j] <= ps.x1 * 0.25
         prim = [t2[1], t1[2] - t2[2], 0.0, t2[3]]
     else
         prim = [t1[1], 0.0, 0.0, t1[3]]
 
-        s = prim[1]^(1-ks.gas.γ) / (2 * prim[end])
+        s = prim[1]^(1 - ks.gas.γ) / (2 * prim[end])
 
         κ = 0.25 # vortex strength
         μ = 0.204
@@ -54,23 +54,23 @@ for j in axes(ctr, 2), i in axes(ctr, 1)
         y0 = 0.5
 
         r = sqrt((ps.x[i, j] - x0)^2 + (ps.y[i, j] - y0)^2)
-        
-        
+
+
         η = r / rc
-        
-        δu = κ * η * exp(μ * (1-η^2)) * (ps.y[i, j] - y0) / r
-        δv = -κ * η * exp(μ * (1-η^2)) * (ps.x[i, j] - x0) / r
-        δT = -(ks.gas.γ-1)*κ^2/(8*μ*ks.gas.γ)*exp(2*μ*(1-η^2))
+
+        δu = κ * η * exp(μ * (1 - η^2)) * (ps.y[i, j] - y0) / r
+        δv = -κ * η * exp(μ * (1 - η^2)) * (ps.x[i, j] - x0) / r
+        δT = -(ks.gas.γ - 1) * κ^2 / (8 * μ * ks.gas.γ) * exp(2 * μ * (1 - η^2))
 
         T0 = 1 / prim[end]
 
-        ρ = prim[1]^(ks.gas.γ-1) * (T0+δT) / T0^(1/(ks.gas.γ-1))
+        ρ = prim[1]^(ks.gas.γ - 1) * (T0 + δT) / T0^(1 / (ks.gas.γ - 1))
         #@show prim[1]
 
         #@show (1 / (s * 2 * (prim[end] + δλ)))
 
         #ρ = (1 / (s * 2 * (prim[end] + δλ)))^(1/(ks.gas.γ-1))
-        prim1 = [ρ, prim[2]+δu, prim[3]+δv, 1/(1/prim[4]+δT)]
+        prim1 = [ρ, prim[2] + δu, prim[3] + δv, 1 / (1 / prim[4] + δT)]
 
         if r <= rc * 8
             prim .= prim1
@@ -95,8 +95,7 @@ for j = 1:ks.ps.ny
 end
 for i = 1:ks.ps.nx
     for j = 1:ks.ps.ny+1
-        a2face[i, j] =
-            Interface2D(ks.ps.dx[i, j], 0.0, 1.0, zeros(4))
+        a2face[i, j] = Interface2D(ks.ps.dx[i, j], 0.0, 1.0, zeros(4))
     end
 end
 

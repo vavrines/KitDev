@@ -23,7 +23,7 @@ begin
     u1 = 5
     nu = 100
     cfl = 0.08
-    dt = cfl * dx / (u1 + 2.)
+    dt = cfl * dx / (u1 + 2.0)
     t = 0.0
 end
 
@@ -47,8 +47,8 @@ for i = 1:nx, ppp1 = 1:nsp
     _ρ = 1.0 + 0.1 * sin(2.0 * π * pspace.xp[i, ppp1])
     _T = 2 * 0.5 / _ρ
 
-    w[i, :, ppp1] .= prim_conserve([_ρ, 1.0, 1.0/_T], 3.0)
-    f[i, :, ppp1] .= maxwellian(vspace.u, [_ρ, 1.0, 1.0/_T])
+    w[i, :, ppp1] .= prim_conserve([_ρ, 1.0, 1.0 / _T], 3.0)
+    f[i, :, ppp1] .= maxwellian(vspace.u, [_ρ, 1.0, 1.0 / _T])
 end
 
 e2f = zeros(Int, nx, 2)
@@ -89,13 +89,13 @@ function mol!(du, u, p, t) # method of lines
     nsp = size(pdf, 3)
 
     τ = 1e-1
-#=
-    @inbounds Threads.@threads for i = 1:ncell
-        for k = 1:nsp
-            u[i, 4:end, k] .= maxwellian(velo, conserve_prim(u[i, 1:3, k], 3.0))
+    #=
+        @inbounds Threads.@threads for i = 1:ncell
+            for k = 1:nsp
+                u[i, 4:end, k] .= maxwellian(velo, conserve_prim(u[i, 1:3, k], 3.0))
+            end
         end
-    end
-=#
+    =#
     f = similar(u)
     @inbounds Threads.@threads for i = 1:ncell
         J = 0.5 * dx[i]
@@ -109,8 +109,8 @@ function mol!(du, u, p, t) # method of lines
         end
     end
 
-    f_face = zeros(eltype(u), ncell, nu+3, 2)
-    @inbounds Threads.@threads for i = 1:ncell 
+    f_face = zeros(eltype(u), ncell, nu + 3, 2)
+    @inbounds Threads.@threads for i = 1:ncell
         for j = 1:nu+3, k = 1:nsp
             # right face of element i
             f_face[i, j, 1] += f[i, j, k] * lr[k]
@@ -120,7 +120,7 @@ function mol!(du, u, p, t) # method of lines
         end
     end
 
-    f_interaction = similar(u, nface, nu+3)
+    f_interaction = similar(u, nface, nu + 3)
     @inbounds Threads.@threads for i = 1:nface
         @. f_interaction[i, 4:end] =
             f_face[f2e[i, 1], 4:end, 2] * (1.0 - δ) + f_face[f2e[i, 2], 4:end, 1] * δ
@@ -130,8 +130,8 @@ function mol!(du, u, p, t) # method of lines
         f_interaction[i, 3] = 0.5 * sum(weights .* velo .^ 2 .* f_interaction[i, 4:end])
     end
 
-    rhs1 = zeros(eltype(u), ncell, nu+3, nsp)
-    @inbounds Threads.@threads for i = 1:ncell 
+    rhs1 = zeros(eltype(u), ncell, nu + 3, nsp)
+    @inbounds Threads.@threads for i = 1:ncell
         for j = 1:nu+3, ppp1 = 1:nsp, k = 1:nsp
             rhs1[i, j, ppp1] += f[i, j, k] * lpdm[ppp1, k]
         end
@@ -140,12 +140,11 @@ function mol!(du, u, p, t) # method of lines
     @inbounds Threads.@threads for i = 1:ncell
         for ppp1 = 1:nsp
             j = 1:3
-            @. du[i, j, ppp1] =
-                -(
-                    rhs1[i, j, ppp1] +
-                    (f_interaction[e2f[i, 2], j] - f_face[i, j, 2]) * dgl[ppp1] +
-                    (f_interaction[e2f[i, 1], j] - f_face[i, j, 1]) * dgr[ppp1]
-                )
+            @. du[i, j, ppp1] = -(
+                rhs1[i, j, ppp1] +
+                (f_interaction[e2f[i, 2], j] - f_face[i, j, 2]) * dgl[ppp1] +
+                (f_interaction[e2f[i, 1], j] - f_face[i, j, 1]) * dgr[ppp1]
+            )
 
             j = 4:nu+3
             du[i, j, ppp1] .=
@@ -153,19 +152,19 @@ function mol!(du, u, p, t) # method of lines
                     rhs1[i, j, ppp1] .+
                     (f_interaction[e2f[i, 2], j] .- f_face[i, j, 2]) .* dgl[ppp1] .+
                     (f_interaction[e2f[i, 1], j] .- f_face[i, j, 1]) .* dgr[ppp1]
-                ) .+ 
+                ) .+
                 (maxwellian(velo, conserve_prim(u[i, 1:3, ppp1], 3.0)) - u[i, j, ppp1]) / τ
         end
     end
 
 end
 
-u0 = zeros(nx, nu+3, nsp)
+u0 = zeros(nx, nu + 3, nsp)
 for i in axes(u0, 1), k in axes(u0, 3)
-    for j in 1:3
+    for j = 1:3
         u0[i, j, k] = w[i, j, k]
     end
-    for j in 4:nu+3
+    for j = 4:nu+3
         u0[i, j, k] = f[i, j-3, k]
     end
 end
@@ -208,7 +207,11 @@ begin
 
             w[idx, :] = sol.u[end][i, 1:3, j]
             prim[idx, :] .= conserve_prim(w[idx, :], 3.0)
-            prim0[idx, :] .= [1.0 + 0.1 * sin(2.0 * π * x[idx]), 1.0, 2 * 0.5 / (1.0 + 0.1 * sin(2.0 * π * x[idx]))]
+            prim0[idx, :] .= [
+                1.0 + 0.1 * sin(2.0 * π * x[idx]),
+                1.0,
+                2 * 0.5 / (1.0 + 0.1 * sin(2.0 * π * x[idx])),
+            ]
         end
     end
 end
@@ -218,20 +221,28 @@ begin
     #FluxRC.L2_error(prim[:, 1], prim0[:, 1], dx) |> println
     #FluxRC.L∞_error(prim[:, 1], prim0[:, 1], dx) |> println
 
-    f_ref = itp.interp1d(x_ref, ref[:e_4][:, 1], kind="cubic")
+    f_ref = itp.interp1d(x_ref, ref[:e_4][:, 1], kind = "cubic")
     FluxRC.L1_error(prim[:, 1], f_ref(x), dx) |> println
     FluxRC.L2_error(prim[:, 1], f_ref(x), dx) |> println
     FluxRC.L∞_error(prim[:, 1], f_ref(x), dx) |> println
 end
 
-plot(x_ref, ref[:e_4][:, 1], label="ref", color=:gray32, lw=2, xlabel="x", ylabel="ρ")
-plot!(x_ref, ref[:e_3][:, 1], label=:none, color=:gray32, lw=2)
-plot!(x_ref, ref[:e_2][:, 1], label=:none, color=:gray32, lw=2)
-plot!(x_ref, ref[:e_1][:, 1], label=:none, color=:gray32, lw=2)
-scatter!(x[1:end], prim_4[1:end, 1], color=1, markeralpha=0.6, label="Kn=0.0001")
-scatter!(x[1:end], prim_3[1:end, 1], color=2, markeralpha=0.6, label="Kn=0.001")
-scatter!(x[1:end], prim_2[1:end, 1], color=3, markeralpha=0.6, label="Kn=0.01")
-scatter!(x[1:end], prim_1[1:end, 1], color=4, markeralpha=0.6, label="Kn=0.1")
+plot(
+    x_ref,
+    ref[:e_4][:, 1],
+    label = "ref",
+    color = :gray32,
+    lw = 2,
+    xlabel = "x",
+    ylabel = "ρ",
+)
+plot!(x_ref, ref[:e_3][:, 1], label = :none, color = :gray32, lw = 2)
+plot!(x_ref, ref[:e_2][:, 1], label = :none, color = :gray32, lw = 2)
+plot!(x_ref, ref[:e_1][:, 1], label = :none, color = :gray32, lw = 2)
+scatter!(x[1:end], prim_4[1:end, 1], color = 1, markeralpha = 0.6, label = "Kn=0.0001")
+scatter!(x[1:end], prim_3[1:end, 1], color = 2, markeralpha = 0.6, label = "Kn=0.001")
+scatter!(x[1:end], prim_2[1:end, 1], color = 3, markeralpha = 0.6, label = "Kn=0.01")
+scatter!(x[1:end], prim_1[1:end, 1], color = 4, markeralpha = 0.6, label = "Kn=0.1")
 
 savefig("wave.pdf")
 

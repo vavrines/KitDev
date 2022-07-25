@@ -76,7 +76,8 @@ function ev!(
             else
                 wL = local_frame(ctr[i-1, j].w, a1face[i, j].n[1], a1face[i, j].n[2])
                 wR = local_frame(ctr[i, j].w, a1face[i, j].n[1], a1face[i, j].n[2])
-                swL = local_frame(ctr[i-1, j].sw[:, 1], a1face[i, j].n[1], a1face[i, j].n[2])
+                swL =
+                    local_frame(ctr[i-1, j].sw[:, 1], a1face[i, j].n[1], a1face[i, j].n[2])
                 swR = local_frame(ctr[i, j].sw[:, 1], a1face[i, j].n[1], a1face[i, j].n[2])
 
                 flux_gks!(
@@ -142,7 +143,8 @@ function ev!(
             else
                 wL = local_frame(ctr[i, j-1].w, a2face[i, j].n[1], a2face[i, j].n[2])
                 wR = local_frame(ctr[i, j].w, a2face[i, j].n[1], a2face[i, j].n[2])
-                swL = local_frame(ctr[i, j-1].sw[:, 2], a2face[i, j].n[1], a2face[i, j].n[2])
+                swL =
+                    local_frame(ctr[i, j-1].sw[:, 2], a2face[i, j].n[1], a2face[i, j].n[2])
                 swR = local_frame(ctr[i, j].sw[:, 2], a2face[i, j].n[1], a2face[i, j].n[2])
 
                 flux_gks!(
@@ -189,17 +191,17 @@ begin
     ps = CSpace2D(1.0, 6.0, 30, 0.0, π, 50, 1, 1)
     vs = VSpace2D(-10.0, 10.0, 48, -10.0, 10.0, 48)
     gas = Gas(Kn = 1e-2, Ma = 5.0, K = 1.0)
-    
+
     prim0 = [1.0, 0.0, 0.0, 1.0]
     prim1 = [1.0, gas.Ma * sound_speed(1.0, gas.γ), 0.0, 1.0]
     fw = (args...) -> prim_conserve(prim1, gas.γ)
-    ff = function(args...)
+    ff = function (args...)
         prim = conserve_prim(fw(args...), gas.γ)
         h = maxwellian(vs.u, vs.v, prim)
         b = h .* gas.K / 2 / prim[end]
         return h, b
     end
-    bc = function(x, y)
+    bc = function (x, y)
         if abs(x^2 + y^2 - 1) < 1e-3
             return prim0
         else
@@ -228,7 +230,8 @@ res = zeros(4)
         ctr[ks.ps.nr+1, j].prim .= conserve_prim(ctr[ks.ps.nr+1, j].w, ks.gas.γ)
         ctr[ks.ps.nr+1, j].sw .= 0.0
         ctr[ks.ps.nr+1, j].h .= maxwellian(ks.vs.u, ks.vs.v, ctr[ks.ps.nr+1, j].prim)
-        ctr[ks.ps.nr+1, j].b .= ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
+        ctr[ks.ps.nr+1, j].b .=
+            ctr[ks.ps.nr+1, j].h .* ks.gas.K ./ 2 ./ ctr[ks.ps.nr+1, j].prim[end]
     end
 
     global t += dt

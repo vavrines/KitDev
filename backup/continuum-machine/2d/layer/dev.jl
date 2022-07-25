@@ -65,17 +65,9 @@ function step!(
     #--- update distribution function ---#
     for j in axes(v, 2), i in axes(u, 1)
         h[i, j] =
-            (
-                h[i, j] +
-                (fhL[i, j] - fhR[i, j]) / Δs +
-                dt / τ * MH[i, j]
-            ) / (1.0 + dt / τ)
+            (h[i, j] + (fhL[i, j] - fhR[i, j]) / Δs + dt / τ * MH[i, j]) / (1.0 + dt / τ)
         b[i, j] =
-            (
-                b[i, j] +
-                (fbL[i, j] - fbR[i, j]) / Δs +
-                dt / τ * MB[i, j]
-            ) / (1.0 + dt / τ)
+            (b[i, j] + (fbL[i, j] - fbR[i, j]) / Δs + dt / τ * MB[i, j]) / (1.0 + dt / τ)
     end
 
 end
@@ -111,7 +103,7 @@ function update(KS, ctr, face, dt, residual)
             :bgk,
         )
     end
-    
+
     for i in eachindex(residual)
         residual[i] = sqrt(sumRes[i] * KS.pSpace.nx) / (sumAvg[i] + 1.e-7)
     end
@@ -124,7 +116,7 @@ begin
     ps = PSpace1D(-1.0, 1.0, 100, 1)
     vs = VSpace2D(-5.0, 5.0, 28, -5.0, 5.0, 28)
     gas = Gas(Kn = 1e-3, K = 1.0)
-    fw = function(x)
+    fw = function (x)
         prim = zeros(4)
         if x <= 0
             prim .= [1.0, 0.0, 1.0, 1.0]
@@ -152,7 +144,7 @@ res = zero(ctr[1].w)
         #=w = (ctr[i-1].w .+ ctr[i].w) ./ 2
         prim = (ctr[i-1].prim .+ ctr[i].prim) ./ 2
         sw = (ctr[i].w .- ctr[i-1].w) / ks.ps.dx[i]
-        
+
         L = abs(ctr[i].w[1] / sw[1])
         ℓ = (1/prim[end])^ks.gas.ω / prim[1] * sqrt(prim[end]) * ks.gas.Kn
         KnGLL = ℓ / L

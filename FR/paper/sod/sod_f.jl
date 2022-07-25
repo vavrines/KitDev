@@ -38,7 +38,7 @@ w = zeros(nx, 3, nsp)
 h = zeros(nx, nu, nsp)
 b = zeros(nx, nu, nsp)
 for i = 1:nx, ppp1 = 1:nsp
-    if i <= nx÷2
+    if i <= nx ÷ 2
         _ρ = 1.0
         _λ = 0.5
     else
@@ -46,7 +46,7 @@ for i = 1:nx, ppp1 = 1:nsp
         _λ = 0.625
     end
 
-    w[i, :, ppp1] .= prim_conserve([_ρ, 0.0, _λ], 5/3)
+    w[i, :, ppp1] .= prim_conserve([_ρ, 0.0, _λ], 5 / 3)
     h[i, :, ppp1] .= maxwellian(vspace.u, [_ρ, 1.0, _λ])
     @. b[i, :, ppp1] = h[i, :, ppp1] * 2.0 / 2.0 / _λ
 end
@@ -61,16 +61,19 @@ function mol!(du, u, p, t) # method of lines
     h = @view u[:, 1:nu, :]
     b = @view u[:, nu+1:end, :]
 
-    M = similar(u, ncell, 2*nu, nsp)
+    M = similar(u, ncell, 2 * nu, nsp)
     @inbounds Threads.@threads for k = 1:nsp
         for i = 1:ncell
             w = [
                 sum(@. weights * u[i, 1:nu, k]),
                 sum(@. weights * velo * u[i, 1:nu, k]),
-                0.5 * (sum(@. weights * velo^2 * u[i, 1:nu, k]) + sum(@. weights * u[i, nu+1:end, k]))
+                0.5 * (
+                    sum(@. weights * velo^2 * u[i, 1:nu, k]) +
+                    sum(@. weights * u[i, nu+1:end, k])
+                ),
             ]
 
-            prim = conserve_prim(w, 5/3)
+            prim = conserve_prim(w, 5 / 3)
             M[i, 1:nu, k] .= maxwellian(velo, prim)
             M[i, nu+1:end, k] .= M[i, 1:nu, k] / prim[end]
         end
@@ -88,8 +91,8 @@ function mol!(du, u, p, t) # method of lines
         end
     end
 
-    u_face = zeros(eltype(u), ncell, 2*nu, 2)
-    f_face = zeros(eltype(u), ncell, 2*nu, 2)
+    u_face = zeros(eltype(u), ncell, 2 * nu, 2)
+    f_face = zeros(eltype(u), ncell, 2 * nu, 2)
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:2*nu, k = 1:nsp
             # right face of element i
@@ -102,23 +105,27 @@ function mol!(du, u, p, t) # method of lines
         end
     end
 
-    u_interaction = zeros(eltype(u), nface, 2*nu)
-    f_interaction = zeros(eltype(u), nface, 2*nu)
+    u_interaction = zeros(eltype(u), nface, 2 * nu)
+    f_interaction = zeros(eltype(u), nface, 2 * nu)
     @inbounds Threads.@threads for i = 2:nface-1
-        @. u_interaction[i, 1:nu] = u_face[i, 1:nu, 2] * (1.0 - δ) + u_face[i-1, 1:nu, 1] * δ
-        @. u_interaction[i, nu+1:end] = u_face[i, nu+1:end, 2] * (1.0 - δ) + u_face[i-1, nu+1:end, 1] * δ
-        @. f_interaction[i, 1:nu] = f_face[i, 1:nu, 2] * (1.0 - δ) + f_face[i-1, 1:nu, 1] * δ
-        @. f_interaction[i, nu+1:end] = f_face[i, nu+1:end, 2] * (1.0 - δ) + f_face[i-1, nu+1:end, 1] * δ
+        @. u_interaction[i, 1:nu] =
+            u_face[i, 1:nu, 2] * (1.0 - δ) + u_face[i-1, 1:nu, 1] * δ
+        @. u_interaction[i, nu+1:end] =
+            u_face[i, nu+1:end, 2] * (1.0 - δ) + u_face[i-1, nu+1:end, 1] * δ
+        @. f_interaction[i, 1:nu] =
+            f_face[i, 1:nu, 2] * (1.0 - δ) + f_face[i-1, 1:nu, 1] * δ
+        @. f_interaction[i, nu+1:end] =
+            f_face[i, nu+1:end, 2] * (1.0 - δ) + f_face[i-1, nu+1:end, 1] * δ
     end
 
-    rhs = zeros(eltype(u), ncell, 2*nu, nsp)
+    rhs = zeros(eltype(u), ncell, 2 * nu, nsp)
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:2*nu, ppp1 = 1:nsp, k = 1:nsp
             rhs[i, j, ppp1] += f[i, j, k] * lpdm[ppp1, k]
         end
     end
 
-    rhs1 = zeros(eltype(u), ncell, 2*nu, nsp)
+    rhs1 = zeros(eltype(u), ncell, 2 * nu, nsp)
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:2*nu, ppp1 = 1:nsp, k = 1:nsp
             rhs1[i, j, ppp1] += u[i, j, k] * lpdm[ppp1, k]
@@ -130,7 +137,7 @@ function mol!(du, u, p, t) # method of lines
                 (u_interaction[i+1, j] - u_face[i, j, 1]) * dgr[ppp1]
         end=#
     end
-    rhs2 = zeros(eltype(u), ncell, 2*nu, nsp)
+    rhs2 = zeros(eltype(u), ncell, 2 * nu, nsp)
     @inbounds Threads.@threads for i = 1:ncell
         for j = 1:2*nu, ppp1 = 1:nsp, k = 1:nsp
             rhs2[i, j, ppp1] += rhs1[i, j, k] * lpdm[ppp1, k]
@@ -156,7 +163,7 @@ function mol!(du, u, p, t) # method of lines
     du[ncell, :, :] .= 0.0
 end
 
-u0 = zeros(nx, 2*nu, nsp)
+u0 = zeros(nx, 2 * nu, nsp)
 for i in axes(u0, 1), k in axes(u0, 3)
     j = 1:nu
     u0[i, j, k] .= h[i, :, k]
@@ -190,8 +197,8 @@ itg = init(
 
 @showprogress for iter = 1:nt
     step!(itg)
-    itg.u[1,:,:] .= itg.u[2,:,:]
-    itg.u[nx,:,:] .= itg.u[nx-1,:,:]
+    itg.u[1, :, :] .= itg.u[2, :, :]
+    itg.u[nx, :, :] .= itg.u[nx-1, :, :]
 end
 
 u = deepcopy(u0)
@@ -199,8 +206,8 @@ du = zero(u)
 @showprogress for iter = 1:nt
     mol!(du, u, p, t)
     u .+= du * dt
-    u[1,:,:] .= u[2,:,:]
-    u[nx,:,:] .= u[nx-1,:,:]
+    u[1, :, :] .= u[2, :, :]
+    u[nx, :, :] .= u[nx-1, :, :]
 end
 
 begin
@@ -217,7 +224,7 @@ begin
             _h = itg.u[i, 1:nu, j]
             _b = itg.u[i, nu+1:end, j]
             _w = moments_conserve(_h, _b, vspace.u, vspace.weights)
-            prim[idx, :] .= conserve_prim(_w, 5/3)
+            prim[idx, :] .= conserve_prim(_w, 5 / 3)
         end
     end
     plot(x, prim[:, 1])

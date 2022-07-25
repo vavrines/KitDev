@@ -32,8 +32,8 @@ function ODEGalerkinTen(du, u, p, t)
         for i = 1:unum
             du[m+1, i] = (
                 F0[i] * p[m+1] - sum(
-                    p[j+1] * u[k+1, i] * uq.t3Product[j, k, m] / uq.t2Product[m, m]
-                    for j = 0:L for k = 0:L
+                    p[j+1] * u[k+1, i] * uq.t3Product[j, k, m] / uq.t2Product[m, m] for
+                    j = 0:L for k = 0:L
                 )
             )
         end
@@ -41,20 +41,14 @@ function ODEGalerkinTen(du, u, p, t)
 end
 
 probGalerkinTen = ODEProblem(ODEGalerkinTen, finit, (tspan[1], tspan[2]), ν)
-solGalerkinTen = solve(
-    probGalerkinTen,
-    Tsit5(),
-    abstol = 1e-10,
-    reltol = 1e-10,
-    saveat = tsteps,
-)
+solGalerkinTen =
+    solve(probGalerkinTen, Tsit5(), abstol = 1e-10, reltol = 1e-10, saveat = tsteps)
 
 sol = solGalerkinTen |> Array
 
 begin
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f",
-    title = "")
+    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f", title = "")
     lines!(tsteps, sol[1, 100, :]; label = "quantum")
     axislegend()
     fig
@@ -62,8 +56,7 @@ end
 
 begin
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "t",
-    title = "")
+    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "t", title = "")
     contourf!(sol[1, :, :])
     fig
 end

@@ -22,7 +22,19 @@ end
 
 begin
     # setup
-    set = Setup("radiation", "linesource", "1d1f1v", "kfvs", "bgk", 1, 2, "vanleer", "extra", 0.5, 0.3)
+    set = Setup(
+        "radiation",
+        "linesource",
+        "1d1f1v",
+        "kfvs",
+        "bgk",
+        1,
+        2,
+        "vanleer",
+        "extra",
+        0.5,
+        0.3,
+    )
 
     # physical space
     x0 = 0
@@ -34,7 +46,14 @@ begin
     # velocity space
     nu = 100
     points, weights = gausslegendre(nu)
-    vs = VSpace1D(points[1], points[end], nu, points, ones(nu) .* (points[end] - points[1]) / (nu - 1), weights)
+    vs = VSpace1D(
+        points[1],
+        points[end],
+        nu,
+        points,
+        ones(nu) .* (points[end] - points[1]) / (nu - 1),
+        weights,
+    )
 
     # material
     σs = ones(Float32, nx)
@@ -44,7 +63,7 @@ begin
 
     # moments
     L = 5
-    ne = L+1
+    ne = L + 1
     m = eval_sphermonomial(points, L)
 
     # time
@@ -80,9 +99,20 @@ for iter = 1:nt
 
     # mathematical optimizer
     @inbounds for i = 1:nx
-        opt = KitBase.optimize_closure(α[:, i], m, weights, phi[:, i], KitBase.maxwell_boltzmann_dual)
+        opt = KitBase.optimize_closure(
+            α[:, i],
+            m,
+            weights,
+            phi[:, i],
+            KitBase.maxwell_boltzmann_dual,
+        )
         α[:, i] .= opt.minimizer
-        phi[:, i] .= KitBase.realizable_reconstruct(opt.minimizer, m, weights, KitBase.maxwell_boltzmann_dual_prime)
+        phi[:, i] .= KitBase.realizable_reconstruct(
+            opt.minimizer,
+            m,
+            weights,
+            KitBase.maxwell_boltzmann_dual_prime,
+        )
     end
 
     flux_wall!(fη, maxwell_boltzmann_dual.(α[:, 1]' * m)[:], points, dt, 1.0)
@@ -91,8 +121,14 @@ for iter = 1:nt
     end
 
     @inbounds for i = 2:nx
-        KitBase.flux_kfvs!(fη, KitBase.maxwell_boltzmann_dual.(α[:, i-1]' * m)[:], KitBase.maxwell_boltzmann_dual.(α[:, i]' * m)[:], points, dt)
-        
+        KitBase.flux_kfvs!(
+            fη,
+            KitBase.maxwell_boltzmann_dual.(α[:, i-1]' * m)[:],
+            KitBase.maxwell_boltzmann_dual.(α[:, i]' * m)[:],
+            points,
+            dt,
+        )
+
         for k in axes(flux, 1)
             flux[k, i] = sum(m[k, :] .* weights .* fη)
         end
@@ -114,10 +150,10 @@ for iter = 1:nt
                 (-σt[i] * phi[q, i]) * dt
         end
     end
-    phi[:, nx] .=  phi[:, nx-1]
+    phi[:, nx] .= phi[:, nx-1]
 
     global t += dt
 end
 
-plot(ps.x[1:nx], phi[1, :], label="Mn")
-plot!(ps.x[1:nx], ρ, label="Sn")
+plot(ps.x[1:nx], phi[1, :], label = "Mn")
+plot!(ps.x[1:nx], ρ, label = "Sn")

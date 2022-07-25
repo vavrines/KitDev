@@ -36,24 +36,22 @@ end
 function eq(out, du, u, p, t)
     γ, m, ρr, pr = p
 
-    out[1] = -2.0 * γ^0.5 / (γ - 1) * 
-        (1.0 - u[1]^((γ - 1.0) / 2γ)) +
-        (u[1] - pr) * 
-        (1 - m^2) * 
-        (ρr * (u[1] + m^2 * pr))^(-0.5)
+    out[1] =
+        -2.0 * γ^0.5 / (γ - 1) * (1.0 - u[1]^((γ - 1.0) / 2γ)) +
+        (u[1] - pr) * (1 - m^2) * (ρr * (u[1] + m^2 * pr))^(-0.5)
 end
 
 u0 = [0.25]
 du0 = [0.0]
 tspan = (0.0, 0.001)
 p = (γ, m, ρr, pr)
-prob = DAEProblem(eq, du0, u0, tspan, p, differential_vars=[false])
+prob = DAEProblem(eq, du0, u0, tspan, p, differential_vars = [false])
 
 pp = solve(prob).u[end][1]
-vp = 2 * γ^0.5 / (γ - 1) * (1 - pp^((γ-1)/2γ))
+vp = 2 * γ^0.5 / (γ - 1) * (1 - pp^((γ - 1) / 2γ))
 ρp = ρr * (pp / pr + m^2) / (1 + m^2 * pp / pr)
 vs = vp * (ρp / ρr) / (ρp / ρr - 1)
-ρm = ρl * (pp / pl)^(1/γ)
+ρm = ρl * (pp / pl)^(1 / γ)
 
 t = 0.15
 
@@ -71,7 +69,7 @@ for i in eachindex(x)
         sol[i, 3] = pl
     elseif x1 < x[i] <= x2
         _c = m^2 * ((x0 - x[i]) / t) + (1 - m^2) * cl
-        
+
         sol[i, 2] = (1 - m^2) * (-(x0 - x[i]) / t + cl)
         sol[i, 1] = (_c / cl)^(2 / (γ - 1))
         sol[i, 3] = pl * (sol[i, 1] / ρl)^γ

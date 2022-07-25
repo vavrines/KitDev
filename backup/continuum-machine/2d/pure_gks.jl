@@ -60,56 +60,56 @@ res = zero(ks.ib.wL)
 @showprogress for iter = 1:200#nt
     #reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-    
+
     # horizontal flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx
             flux_gks!(
                 a1face[i, j].fw,
-                ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j]/2,
-                ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j]/2,
+                ctr[i-1, j].w .+ ctr[i-1, j].sw[:, 1] .* ks.ps.dx[i-1, j] / 2,
+                ctr[i, j].w .- ctr[i, j].sw[:, 1] .* ks.ps.dx[i, j] / 2,
                 ks.gas.K,
                 ks.gas.γ,
                 ks.gas.μᵣ,
                 ks.gas.ω,
                 dt,
-                ks.ps.dx[i-1, j]/2,
-                ks.ps.dx[i, j]/2,
+                ks.ps.dx[i-1, j] / 2,
+                ks.ps.dx[i, j] / 2,
                 a1face[i, j].len,
                 ctr[i-1, j].sw[:, 1],
                 ctr[i, j].sw[:, 1],
             )
         end
     end
-    
+
     # vertical flux
     @inbounds Threads.@threads for j = 2:ks.pSpace.ny
         for i = 1:ks.pSpace.nx
-            wL = KitBase.local_frame(ctr[i, j-1].w, 0., 1.)
-            wR = KitBase.local_frame(ctr[i, j].w, 0., 1.)
-            swL = KitBase.local_frame(ctr[i, j-1].sw[:, 2], 0., 1.)
-            swR = KitBase.local_frame(ctr[i, j].sw[:, 2], 0., 1.)
+            wL = KitBase.local_frame(ctr[i, j-1].w, 0.0, 1.0)
+            wR = KitBase.local_frame(ctr[i, j].w, 0.0, 1.0)
+            swL = KitBase.local_frame(ctr[i, j-1].sw[:, 2], 0.0, 1.0)
+            swR = KitBase.local_frame(ctr[i, j].sw[:, 2], 0.0, 1.0)
 
             flux_gks!(
                 a2face[i, j].fw,
-                wL .+ swL .* ks.ps.dy[i, j-1]/2,
-                wR .- swR .* ks.ps.dy[i, j]/2,
+                wL .+ swL .* ks.ps.dy[i, j-1] / 2,
+                wR .- swR .* ks.ps.dy[i, j] / 2,
                 ks.gas.K,
                 ks.gas.γ,
                 ks.gas.μᵣ,
                 ks.gas.ω,
                 dt,
-                ks.ps.dy[i, j-1]/2,
-                ks.ps.dy[i, j]/2,
+                ks.ps.dy[i, j-1] / 2,
+                ks.ps.dy[i, j] / 2,
                 a2face[i, j].len,
                 swL,
                 swR,
             )
 
-            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0., 1.)
+            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0.0, 1.0)
         end
     end
-    
+
     # boundary flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         KitBase.flux_boundary_maxwell!(
@@ -120,7 +120,7 @@ res = zero(ks.ib.wL)
             ks.gas.γ,
             dt,
             ctr[1, j].dy,
-            1.,
+            1.0,
         )
 
         KitBase.flux_boundary_maxwell!(
@@ -131,12 +131,12 @@ res = zero(ks.ib.wL)
             ks.gas.γ,
             dt,
             ctr[ks.pSpace.nx, j].dy,
-            -1.,
+            -1.0,
         )
     end
-    
+
     @inbounds Threads.@threads for i = 1:ks.pSpace.nx
-        w = KitBase.local_frame(ctr[i, 1].w, 0., 1.)
+        w = KitBase.local_frame(ctr[i, 1].w, 0.0, 1.0)
         KitBase.flux_boundary_maxwell!(
             a2face[i, 1].fw,
             ks.ib.bcD,
@@ -147,12 +147,12 @@ res = zero(ks.ib.wL)
             ctr[i, 1].dx,
             1,
         )
-        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0., 1.)
-        
-        w1 = KitBase.local_frame(ctr[i, ks.pSpace.ny].w, 0., 1.)
+        a2face[i, 1].fw .= KitBase.global_frame(a2face[i, 1].fw, 0.0, 1.0)
+
+        w1 = KitBase.local_frame(ctr[i, ks.pSpace.ny].w, 0.0, 1.0)
         KitBase.flux_boundary_maxwell!(
             a2face[i, ks.pSpace.ny+1].fw,
-            [1., 0.0, -0.05, 1.0],
+            [1.0, 0.0, -0.05, 1.0],
             w1,
             ks.gas.K,
             ks.gas.γ,
@@ -160,18 +160,19 @@ res = zero(ks.ib.wL)
             ctr[i, ks.pSpace.ny].dy,
             -1,
         )
-        a2face[i, ks.pSpace.ny+1].fw .= KitBase.global_frame(
-            a2face[i, ks.pSpace.ny+1].fw,
-            0.,
-            1.,
-        )
+        a2face[i, ks.pSpace.ny+1].fw .=
+            KitBase.global_frame(a2face[i, ks.pSpace.ny+1].fw, 0.0, 1.0)
     end
-    
+
     #update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
 
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 1:ks.pSpace.nx
-            @. ctr[i, j].w += (a1face[i, j].fw - a1face[i+1, j].fw + a2face[i, j].fw - a2face[i, j+1].fw) / ctr[i, j].dx / ctr[i, j].dy
+            @. ctr[i, j].w +=
+                (
+                    a1face[i, j].fw - a1face[i+1, j].fw + a2face[i, j].fw -
+                    a2face[i, j+1].fw
+                ) / ctr[i, j].dx / ctr[i, j].dy
             ctr[i, j].prim .= conserve_prim(ctr[i, j].w, ks.gas.γ)
         end
     end
@@ -233,17 +234,13 @@ end
 
 ks = SolverSet(D)
 KS = ks
-ctr = Array{ControlVolume2D}(
-    undef,
-    1,
-    ks.ps.ny,
-)
+ctr = Array{ControlVolume2D}(undef, 1, ks.ps.ny)
 a1face = Array{Interface2D}(undef, KS.pSpace.nx + 1, KS.pSpace.ny)
 a2face = Array{Interface2D}(undef, KS.pSpace.nx, KS.pSpace.ny + 1)
 
 for j in axes(ctr, 2), i in axes(ctr, 1)
     if j <= KS.pSpace.ny ÷ 2
-        prim = [1., 0., 0., 0.5]
+        prim = [1.0, 0.0, 0.0, 0.5]
         w = conserve_prim(prim, ks.gas.γ)
 
         ctr[i, j] = ControlVolume2D(
@@ -255,7 +252,7 @@ for j in axes(ctr, 2), i in axes(ctr, 1)
             prim,
         )
     else
-        prim = [0.125, 0., 0., 0.625]
+        prim = [0.125, 0.0, 0.0, 0.625]
         w = conserve_prim(prim, ks.gas.γ)
 
         ctr[i, j] = ControlVolume2D(
@@ -271,8 +268,7 @@ end
 
 for i = 1:KS.pSpace.nx
     for j = 1:KS.pSpace.ny
-        a2face[i, j] =
-            Interface2D(KS.pSpace.dx[i, j], 0.0, 1.0, KS.ib.wL)
+        a2face[i, j] = Interface2D(KS.pSpace.dx[i, j], 0.0, 1.0, KS.ib.wL)
     end
     a2face[i, KS.pSpace.ny+1] =
         Interface2D(KS.pSpace.dx[i, KS.pSpace.ny], 0.0, 1.0, KS.ib.wL)
@@ -286,7 +282,7 @@ res = zero(ks.ib.wL)
 @showprogress for iter = 1:nt
     #reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-    
+
     # horizontal flux
     #=@inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx
@@ -307,43 +303,45 @@ res = zero(ks.ib.wL)
             )
         end
     end=#
-    
+
     # vertical flux
     @inbounds Threads.@threads for j = 2:ks.pSpace.ny
         for i = 1:ks.pSpace.nx
-            wL = local_frame(ctr[i, j-1].w, 0., 1.)
-            wR = local_frame(ctr[i, j].w, 0., 1.)
-            swL = local_frame(ctr[i, j-1].sw[:, 2], 0., 1.)
-            swR = local_frame(ctr[i, j].sw[:, 2], 0., 1.)
-#=
-            flux_gks!(
-                a2face[i, j].fw,
-                wL .+ swL .* ks.ps.dy[i, j-1]/2,
-                wR .- swR .* ks.ps.dy[i, j]/2,
-                ks.gas.K,
-                ks.gas.γ,
-                ks.gas.μᵣ,
-                ks.gas.ω,
-                dt,
-                ks.ps.dy[i, j-1]/2,
-                ks.ps.dy[i, j]/2,
-                a2face[i, j].len,
-                swL,
-                swR,
-            )=#
+            wL = local_frame(ctr[i, j-1].w, 0.0, 1.0)
+            wR = local_frame(ctr[i, j].w, 0.0, 1.0)
+            swL = local_frame(ctr[i, j-1].sw[:, 2], 0.0, 1.0)
+            swR = local_frame(ctr[i, j].sw[:, 2], 0.0, 1.0)
+            #=
+                        flux_gks!(
+                            a2face[i, j].fw,
+                            wL .+ swL .* ks.ps.dy[i, j-1]/2,
+                            wR .- swR .* ks.ps.dy[i, j]/2,
+                            ks.gas.K,
+                            ks.gas.γ,
+                            ks.gas.μᵣ,
+                            ks.gas.ω,
+                            dt,
+                            ks.ps.dy[i, j-1]/2,
+                            ks.ps.dy[i, j]/2,
+                            a2face[i, j].len,
+                            swL,
+                            swR,
+                        )=#
 
             flux_roe!(a2face[i, j].fw, wL, wR, ks.gas.γ, dt)
 
-            a2face[i, j].fw .= KitBase.global_frame(a2face[i, j].fw, 0., 1.) .* ctr[i, j].dx
+            a2face[i, j].fw .=
+                KitBase.global_frame(a2face[i, j].fw, 0.0, 1.0) .* ctr[i, j].dx
         end
     end
-    
+
     #update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
 
     @inbounds Threads.@threads for j = 2:ks.pSpace.ny-1
         for i = 1:ks.pSpace.nx
             #@. ctr[i, j].w += (a1face[i, j].fw - a1face[i+1, j].fw + a2face[i, j].fw - a2face[i, j+1].fw) / ctr[i, j].dx / ctr[i, j].dy
-            @. ctr[i, j].w += (a2face[i, j].fw - a2face[i, j+1].fw) / ctr[i, j].dx / ctr[i, j].dy
+            @. ctr[i, j].w +=
+                (a2face[i, j].fw - a2face[i, j+1].fw) / ctr[i, j].dx / ctr[i, j].dy
             ctr[i, j].prim .= conserve_prim(ctr[i, j].w, ks.gas.γ)
         end
     end
@@ -415,16 +413,12 @@ end
 
 ks = SolverSet(D)
 KS = ks
-ctr = Array{ControlVolume2D}(
-    undef,
-    ks.ps.nx,
-    1,
-)
+ctr = Array{ControlVolume2D}(undef, ks.ps.nx, 1)
 a1face = Array{Interface2D}(undef, KS.pSpace.nx + 1, KS.pSpace.ny)
 
 for j in axes(ctr, 2), i in axes(ctr, 1)
     if i <= KS.pSpace.nx ÷ 2
-        prim = [1., 0., 0., 0.5]
+        prim = [1.0, 0.0, 0.0, 0.5]
         w = conserve_prim(prim, ks.gas.γ)
 
         ctr[i, j] = ControlVolume2D(
@@ -436,7 +430,7 @@ for j in axes(ctr, 2), i in axes(ctr, 1)
             prim,
         )
     else
-        prim = [0.125, 0., 0., 0.625]
+        prim = [0.125, 0.0, 0.0, 0.625]
         w = conserve_prim(prim, ks.gas.γ)
 
         ctr[i, j] = ControlVolume2D(
@@ -452,11 +446,9 @@ end
 
 for i = 1:KS.pSpace.nx
     for j = 1:KS.pSpace.ny
-        a1face[i, j] =
-            Interface2D(KS.pSpace.dx[i, j], 1.0, 0.0, KS.ib.wL)
+        a1face[i, j] = Interface2D(KS.pSpace.dx[i, j], 1.0, 0.0, KS.ib.wL)
     end
-    a1face[ks.ps.nx+1, 1] =
-        Interface2D(KS.pSpace.dx[i, 1], 1.0, 0.0, KS.ib.wL)
+    a1face[ks.ps.nx+1, 1] = Interface2D(KS.pSpace.dx[i, 1], 1.0, 0.0, KS.ib.wL)
 end
 
 t = 0.0
@@ -467,7 +459,7 @@ res = zero(ks.ib.wL)
 @showprogress for iter = 1:nt
     #reconstruct!(ks, ctr)
     #evolve!(ks, ctr, a1face, a2face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-    
+
     # horizontal flux
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx
@@ -491,13 +483,14 @@ res = zero(ks.ib.wL)
             a1face[i, j].fw .*= ctr[i, j].dy
         end
     end
-    
+
     #update!(ks, ctr, a1face, a2face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
 
     @inbounds Threads.@threads for j = 1:ks.pSpace.ny
         for i = 2:ks.pSpace.nx-1
             #@. ctr[i, j].w += (a1face[i, j].fw - a1face[i+1, j].fw + a2face[i, j].fw - a2face[i, j+1].fw) / ctr[i, j].dx / ctr[i, j].dy
-            @. ctr[i, j].w += (a1face[i, j].fw - a1face[i+1, j].fw) / ctr[i, j].dx / ctr[i, j].dy
+            @. ctr[i, j].w +=
+                (a1face[i, j].fw - a1face[i+1, j].fw) / ctr[i, j].dx / ctr[i, j].dy
             ctr[i, j].prim .= conserve_prim(ctr[i, j].w, ks.gas.γ)
         end
     end
@@ -506,11 +499,11 @@ res = zero(ks.ib.wL)
 end
 
 begin
-sol = zeros(ks.ps.nx, 4)
-for i in axes(sol, 1)
-    sol[i, :] .= ctr[i, 1].prim
-    sol[i, 4] = 1 / sol[i, 4]
-end
+    sol = zeros(ks.ps.nx, 4)
+    for i in axes(sol, 1)
+        sol[i, :] .= ctr[i, 1].prim
+        sol[i, 4] = 1 / sol[i, 4]
+    end
 
-plot(ks.ps.x[:], sol[:, :])
+    plot(ks.ps.x[:], sol[:, :])
 end

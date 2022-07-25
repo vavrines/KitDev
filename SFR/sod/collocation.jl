@@ -109,12 +109,11 @@ function dudt!(du, u, p, t)
 
     idx = 2:ncell-1 # ending points are Dirichlet
     for i in idx, ppp1 = 1:nsp, k = 1:3, l = 1:nq
-        du[i, ppp1, k, l] =
-            -(
-                rhs1[i, ppp1, k, l] +
-                (f_interaction[i, k, l] / J[i] - f_face[i, k, l, 2]) * dgl[ppp1] +
-                (f_interaction[i+1, k, l] / J[i] - f_face[i, k, l, 1]) * dgr[ppp1]
-            )
+        du[i, ppp1, k, l] = -(
+            rhs1[i, ppp1, k, l] +
+            (f_interaction[i, k, l] / J[i] - f_face[i, k, l, 2]) * dgl[ppp1] +
+            (f_interaction[i+1, k, l] / J[i] - f_face[i, k, l, 1]) * dgr[ppp1]
+        )
     end
 end
 
@@ -134,7 +133,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 
     for i = 1:ps.nx, j = 1:uq.nq
         ũ = VInv * itg.u[i, :, 1, j]
-        su = ũ[end]^2 / sum(ũ.^2)
+        su = ũ[end]^2 / sum(ũ .^ 2)
         isShock = shock_detector(log10(su), ps.deg)
 
         if isShock
@@ -161,8 +160,8 @@ begin
             p0[:, k] .= conserve_prim(itg.u[i, j, :, k], γ)
             p0[end, k] = 1 / p0[end, k]
         end
-        
-        p1 = zeros(3, uq.nm+1)
+
+        p1 = zeros(3, uq.nm + 1)
         for k = 1:3
             p1[k, :] .= ran_chaos(p0[k, :], uq)
         end

@@ -7,7 +7,11 @@ function recon_pdf(ks, prim, swx, swy)
     Mu, Mv, Mxi, _, _1 = gauss_moments(prim, ks.gas.K)
     a = pdf_slope(prim, swx, ks.gas.K)
     b = pdf_slope(prim, swy, ks.gas.K)
-    sw = -prim[1] .* (moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+ moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1))
+    sw =
+        -prim[1] .* (
+            moments_conserve_slope(a, Mu, Mv, Mxi, 1, 0) .+
+            moments_conserve_slope(b, Mu, Mv, Mxi, 0, 1)
+        )
     A = pdf_slope(prim, sw, ks.gas.K)
     tau = vhs_collision_time(prim, ks.gas.μᵣ, ks.gas.ω)
 
@@ -48,12 +52,7 @@ function rc!(
         #reconstruct2!(swL, ctr[1, j].w, ctr[2, j].w, 0.5 * (dx[1, j] + dx[2, j]))
 
         swR = KitBase.extract_last(ctr[nx, j].sw, 1, mode = :view)
-        reconstruct2!(
-            swR,
-            ctr[nx-1, j].w,
-            ctr[nx, j].w,
-            0.5 * (dx[nx-1, j] + dx[nx, j]),
-        )
+        reconstruct2!(swR, ctr[nx-1, j].w, ctr[nx, j].w, 0.5 * (dx[nx-1, j] + dx[nx, j]))
     end
 
     # inner
@@ -96,19 +95,9 @@ function rc!(
         #reconstruct2!(sbL, ctr[1, j].b, ctr[2, j].b, 0.5 * (dx[1, j] + dx[2, j]))
 
         shR = KitBase.extract_last(ctr[nx, j].sh, 1, mode = :view)
-        reconstruct2!(
-            shR,
-            ctr[nx-1, j].h,
-            ctr[nx, j].h,
-            0.5 * (dx[nx-1, j] + dx[nx, j]),
-        )
+        reconstruct2!(shR, ctr[nx-1, j].h, ctr[nx, j].h, 0.5 * (dx[nx-1, j] + dx[nx, j]))
         sbR = KitBase.extract_last(ctr[nx, j].sb, 1, mode = :view)
-        reconstruct2!(
-            sbR,
-            ctr[nx-1, j].b,
-            ctr[nx, j].b,
-            0.5 * (dx[nx-1, j] + dx[nx, j]),
-        )
+        reconstruct2!(sbR, ctr[nx-1, j].b, ctr[nx, j].b, 0.5 * (dx[nx-1, j] + dx[nx, j]))
     end
 
     # inner

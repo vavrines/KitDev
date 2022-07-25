@@ -22,7 +22,7 @@ begin
 
     xFace = collect(x0:dx:x1)
     xFace_ref = collect(x0:dx_ref:x1)
-    
+
     xsp = FluxRC.global_sp(xFace, xGauss)
     xsp_ref = FluxRC.global_sp(xFace_ref, xGauss)
 
@@ -47,7 +47,7 @@ for i = 1:nx
         x[idx] = xsp[i, j]
 
         _w = moments_conserve(sol_ma2[i, :, :, :, j], vs.u, vs.v, vs.w, vs.weights)
-        prim[idx, :] .= conserve_prim(_w, 5/3)
+        prim[idx, :] .= conserve_prim(_w, 5 / 3)
         prim[idx, end] = 1 / prim[idx, end]
     end
 end
@@ -61,17 +61,17 @@ for i = 1:nx_ref
         x_ref[idx] = xsp_ref[i, j]
 
         _w = moments_conserve(ref_ma2[i, :, :, :, j], vs.u, vs.v, vs.w, vs.weights)
-        prim_ref[idx, :] .= conserve_prim(_w, 5/3)
+        prim_ref[idx, :] .= conserve_prim(_w, 5 / 3)
         prim_ref[idx, end] = 1 / prim_ref[idx, end]
     end
 end
 
-Plots.plot(x_ref, prim_ref[:, 1], lw=2, color=:gray32, label="ref", xlabel="x")
-Plots.plot!(x_ref, prim_ref[:, 2], lw=2, color=:gray32, label=:none)
-Plots.plot!(x_ref, prim_ref[:, end], lw=2, color=:gray32, label=:none)
-Plots.scatter!(x, prim[:, 1], markeralpha=0.6, color=1, label="density")
-Plots.scatter!(x, prim[:, 2], markeralpha=0.6, color=2, label="velocity")
-Plots.scatter!(x, prim[:, end], markeralpha=0.6, color=3, label="temperature")
+Plots.plot(x_ref, prim_ref[:, 1], lw = 2, color = :gray32, label = "ref", xlabel = "x")
+Plots.plot!(x_ref, prim_ref[:, 2], lw = 2, color = :gray32, label = :none)
+Plots.plot!(x_ref, prim_ref[:, end], lw = 2, color = :gray32, label = :none)
+Plots.scatter!(x, prim[:, 1], markeralpha = 0.6, color = 1, label = "density")
+Plots.scatter!(x, prim[:, 2], markeralpha = 0.6, color = 2, label = "velocity")
+Plots.scatter!(x, prim[:, end], markeralpha = 0.6, color = 3, label = "temperature")
 Plots.savefig("shock_ma2.pdf")
 
 
@@ -89,7 +89,7 @@ for i = 1:nx
         idx = idx0 + j
 
         _w = moments_conserve(sol_ma3[i, :, :, :, j], vs.u, vs.v, vs.w, vs.weights)
-        prim[idx, :] .= conserve_prim(_w, 5/3)
+        prim[idx, :] .= conserve_prim(_w, 5 / 3)
         prim[idx, end] = 1 / prim[idx, end]
     end
 end
@@ -101,15 +101,15 @@ for i = 1:nx_ref
         idx = idx0 + j
 
         _w = moments_conserve(ref_ma3[i, :, :, :, j], vs.u, vs.v, vs.w, vs.weights)
-        prim_ref[idx, :] .= conserve_prim(_w, 5/3)
+        prim_ref[idx, :] .= conserve_prim(_w, 5 / 3)
         prim_ref[idx, end] = 1 / prim_ref[idx, end]
     end
 end
 
-Plots.plot(x_ref, prim_ref[:, 1], lw=2, color=:gray32, label="ref", xlabel="x")
-Plots.plot!(x_ref, prim_ref[:, 2], lw=2, color=:gray32, label=:none)
-Plots.plot!(x_ref, prim_ref[:, end], lw=2, color=:gray32, label=:none)
-Plots.scatter!(x, prim[:, 1], markeralpha=0.6, color=1, label="density")
-Plots.scatter!(x, prim[:, 2], markeralpha=0.6, color=2, label="velocity")
-Plots.scatter!(x, prim[:, end], markeralpha=0.6, color=3, label="temperature")
+Plots.plot(x_ref, prim_ref[:, 1], lw = 2, color = :gray32, label = "ref", xlabel = "x")
+Plots.plot!(x_ref, prim_ref[:, 2], lw = 2, color = :gray32, label = :none)
+Plots.plot!(x_ref, prim_ref[:, end], lw = 2, color = :gray32, label = :none)
+Plots.scatter!(x, prim[:, 1], markeralpha = 0.6, color = 1, label = "density")
+Plots.scatter!(x, prim[:, 2], markeralpha = 0.6, color = 2, label = "velocity")
+Plots.scatter!(x, prim[:, end], markeralpha = 0.6, color = 3, label = "temperature")
 Plots.savefig("shock_ma3.pdf")

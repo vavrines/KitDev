@@ -22,7 +22,19 @@ end
 
 begin
     # setup
-    set = Setup("radiation", "linesource", "1d1f1v", "kfvs", "bgk", 1, 2, "vanleer", "extra", 0.5, 0.3)
+    set = Setup(
+        "radiation",
+        "linesource",
+        "1d1f1v",
+        "kfvs",
+        "bgk",
+        1,
+        2,
+        "vanleer",
+        "extra",
+        0.5,
+        0.3,
+    )
 
     # physical space
     x0 = 0
@@ -34,7 +46,14 @@ begin
     # velocity space
     nu = 100
     points, weights = gausslegendre(nu)
-    vs = VSpace1D(points[1], points[end], nu, points, ones(nu) .* (points[end] - points[1]) / (nu - 1), weights)
+    vs = VSpace1D(
+        points[1],
+        points[end],
+        nu,
+        points,
+        ones(nu) .* (points[end] - points[1]) / (nu - 1),
+        weights,
+    )
 
     # material
     σs = ones(Float32, nx)
@@ -54,7 +73,7 @@ begin
         phi[:, i] .= f0
     end
 
-    flux = zeros(nu, nx+1)
+    flux = zeros(nu, nx + 1)
 
     cd(@__DIR__)
 end
@@ -79,7 +98,7 @@ for iter = 1:nt
                 σq[i] * dt
         end
     end
-    phi[:, nx] .=  phi[:, nx-1]
+    phi[:, nx] .= phi[:, nx-1]
 
     global t += dt
 end

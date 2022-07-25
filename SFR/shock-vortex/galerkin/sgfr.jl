@@ -1,4 +1,5 @@
-using KitBase, FluxReconstruction, Langevin, LinearAlgebra, OrdinaryDiffEq, OffsetArrays, Plots, JLD2
+using KitBase,
+    FluxReconstruction, Langevin, LinearAlgebra, OrdinaryDiffEq, OffsetArrays, Plots, JLD2
 using ProgressMeter: @showprogress
 using Base.Threads: @threads
 
@@ -16,14 +17,14 @@ begin
         0.1, # cfl
         1.0, # time
     )
-    ps = FRPSpace2D(0.0, 2.0, 100, 0.0, 1.0, 50, set.interpOrder-1, 1, 1)
+    ps = FRPSpace2D(0.0, 2.0, 100, 0.0, 1.0, 50, set.interpOrder - 1, 1, 1)
     vs = nothing
     gas = Gas(
         1e-6,
         1.12, # Mach
         1.0,
         3.0, # K
-        7/5,
+        7 / 5,
         0.81,
         1.0,
         0.5,
@@ -51,9 +52,23 @@ include("../../filter.jl")
 function dudt!(du, u, p, t)
     du .= 0.0
 
-    uRan, f, u_face, f_face, fx_interaction, fy_interaction, rhs1, rhs2,
-    iJ, ll, lr, dhl, dhr, lpdm, γ, uq = p
-    
+    uRan,
+    f,
+    u_face,
+    f_face,
+    fx_interaction,
+    fy_interaction,
+    rhs1,
+    rhs2,
+    iJ,
+    ll,
+    lr,
+    dhl,
+    dhr,
+    lpdm,
+    γ,
+    uq = p
+
     nx = size(u, 1) - 2
     ny = size(u, 2) - 2
     nsp = size(u, 3)
@@ -143,14 +158,26 @@ function dudt!(du, u, p, t)
 
     @inbounds @threads for n = 1:nm
         for m = 1:4, l = 1:nsp, k = 1:nsp, j = 1:ny, i = 1:nx
-            du[i, j, k, l, m, n] =
-                -(
-                    rhs1[i, j, k, l, m, n] + rhs2[i, j, k, l, m, n] +
-                    (fx_interaction[i, j, l, m, n] * iJ[i, j][k, l][1, 1] - f_face[i, j, 4, l, m, n, 1]) * dhl[k] +
-                    (fx_interaction[i+1, j, l, m, n] * iJ[i, j][k, l][1, 1] - f_face[i, j, 2, l, m, n, 1]) * dhr[k] +
-                    (fy_interaction[i, j, k, m, n] * iJ[i, j][k, l][2, 2] - f_face[i, j, 1, k, m, n, 2]) * dhl[l] +
-                    (fy_interaction[i, j+1, k, m, n] * iJ[i, j][k, l][2, 2] - f_face[i, j, 3, k, m, n, 2]) * dhr[l]
-                )
+            du[i, j, k, l, m, n] = -(
+                rhs1[i, j, k, l, m, n] +
+                rhs2[i, j, k, l, m, n] +
+                (
+                    fx_interaction[i, j, l, m, n] * iJ[i, j][k, l][1, 1] -
+                    f_face[i, j, 4, l, m, n, 1]
+                ) * dhl[k] +
+                (
+                    fx_interaction[i+1, j, l, m, n] * iJ[i, j][k, l][1, 1] -
+                    f_face[i, j, 2, l, m, n, 1]
+                ) * dhr[k] +
+                (
+                    fy_interaction[i, j, k, m, n] * iJ[i, j][k, l][2, 2] -
+                    f_face[i, j, 1, k, m, n, 2]
+                ) * dhl[l] +
+                (
+                    fy_interaction[i, j+1, k, m, n] * iJ[i, j][k, l][2, 2] -
+                    f_face[i, j, 3, k, m, n, 2]
+                ) * dhr[l]
+            )
         end
     end
 
@@ -158,24 +185,60 @@ function dudt!(du, u, p, t)
 end
 
 begin
-    uRan = OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg+1, ps.deg+1, 4, uq.nq)
-    f = OffsetArray{Float64}(undef, 0:ks.ps.nx+1, 0:ks.ps.ny+1, ks.ps.deg+1, ks.ps.deg+1, 4, uq.nm+1, 2)
-    u_face = OffsetArray{Float64}(undef, 0:ks.ps.nx+1, 0:ks.ps.ny+1, 4, ks.ps.deg+1, 4, uq.nq)
-    f_face = OffsetArray{Float64}(undef, 0:ks.ps.nx+1, 0:ks.ps.ny+1, 4, ks.ps.deg+1, 4, uq.nm+1, 2)
-    fx_interaction = zeros(ks.ps.nx+1, ks.ps.ny, ks.ps.deg+1, 4, uq.nm+1)
-    fy_interaction = zeros(ks.ps.nx, ks.ps.ny+1, ks.ps.deg+1, 4, uq.nm+1)
-    rhs1 = zeros(ks.ps.nx, ks.ps.ny, ks.ps.deg+1, ks.ps.deg+1, 4, uq.nm+1)
-    rhs2 = zeros(ks.ps.nx, ks.ps.ny, ks.ps.deg+1, ks.ps.deg+1, 4, uq.nm+1)
+    uRan =
+        OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg + 1, ps.deg + 1, 4, uq.nq)
+    f = OffsetArray{Float64}(
+        undef,
+        0:ks.ps.nx+1,
+        0:ks.ps.ny+1,
+        ks.ps.deg + 1,
+        ks.ps.deg + 1,
+        4,
+        uq.nm + 1,
+        2,
+    )
+    u_face =
+        OffsetArray{Float64}(undef, 0:ks.ps.nx+1, 0:ks.ps.ny+1, 4, ks.ps.deg + 1, 4, uq.nq)
+    f_face = OffsetArray{Float64}(
+        undef,
+        0:ks.ps.nx+1,
+        0:ks.ps.ny+1,
+        4,
+        ks.ps.deg + 1,
+        4,
+        uq.nm + 1,
+        2,
+    )
+    fx_interaction = zeros(ks.ps.nx + 1, ks.ps.ny, ks.ps.deg + 1, 4, uq.nm + 1)
+    fy_interaction = zeros(ks.ps.nx, ks.ps.ny + 1, ks.ps.deg + 1, 4, uq.nm + 1)
+    rhs1 = zeros(ks.ps.nx, ks.ps.ny, ks.ps.deg + 1, ks.ps.deg + 1, 4, uq.nm + 1)
+    rhs2 = zeros(ks.ps.nx, ks.ps.ny, ks.ps.deg + 1, ks.ps.deg + 1, 4, uq.nm + 1)
 end
 
-p = (uRan, f, u_face, f_face, fx_interaction, fy_interaction, rhs1, rhs2,
-    ps.iJ, ps.ll, ps.lr, ps.dhl, ps.dhr, ps.dl, ks.gas.γ, uq)
+p = (
+    uRan,
+    f,
+    u_face,
+    f_face,
+    fx_interaction,
+    fy_interaction,
+    rhs1,
+    rhs2,
+    ps.iJ,
+    ps.ll,
+    ps.lr,
+    ps.dhl,
+    ps.dhr,
+    ps.dl,
+    ks.gas.γ,
+    uq,
+)
 tspan = (0.0, 1.0)
 dt = 0.001
 nt = tspan[2] ÷ dt |> Int
 
 # initial condition
-u0 = OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg+1, ps.deg+1, 4, uq.nm+1)
+u0 = OffsetArray{Float64}(undef, 0:ps.nx+1, 0:ps.ny+1, ps.deg + 1, ps.deg + 1, 4, uq.nm + 1)
 begin
     gam = gas.γ
     MaL = gas.Ma
@@ -223,8 +286,11 @@ itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
     # filter
     for i in axes(itg.u, 1), j in axes(itg.u, 2)
         ũ = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, 1, :], 9, :)
-        su = maximum([sum(ũ[3:end, j].^2) / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:ps.deg+1])
+        su = maximum([sum(ũ[3:end, j] .^ 2) / sum(ũ[:, j] .^ 2) for j = 1:uq.nm+1])
+        sv = maximum([
+            ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :] .^ 2 .* l2) for
+            j = 1:ps.deg+1
+        ])
         isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
 
         if isShock
@@ -233,10 +299,10 @@ itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
             λ2 = 1e-12#5
             for s = 1:4
                 û = ps.iV * reshape(itg.u[i, j, 1:3, 1:3, s, :], 9, :)
-                
+
                 FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û, ϕ; filter = :lasso)
-                
+
                 uNode = reshape(ps.V * û, 3, 3, :)
                 itg.u[i, j, :, :, s, :] .= uNode
             end
@@ -249,7 +315,7 @@ itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
     itg.u[ps.nx+1, :, :, :, :, :] .= itg.u[ps.nx, :, :, :, :, :]
 
     if iter % 100 == 0
-        t = round(itg.t, digits=3)
+        t = round(itg.t, digits = 3)
         filename = "iter_" * string(t) * ".jld2"
         u = itg.u
         @save filename u
@@ -257,13 +323,13 @@ itg = init(prob, Midpoint(), save_everystep = false, adaptive = false, dt = dt)
 end
 
 begin
-    x = zeros(ps.nx*(ps.deg+1), ps.ny*(ps.deg+1))
-    y = zeros(ps.nx*(ps.deg+1), ps.ny*(ps.deg+1))
-    sol = zeros(ps.nx*(ps.deg+1), ps.ny*(ps.deg+1), 4, 2)
+    x = zeros(ps.nx * (ps.deg + 1), ps.ny * (ps.deg + 1))
+    y = zeros(ps.nx * (ps.deg + 1), ps.ny * (ps.deg + 1))
+    sol = zeros(ps.nx * (ps.deg + 1), ps.ny * (ps.deg + 1), 4, 2)
 
     for i = 1:ps.nx, j = 1:ps.ny
-        idx0 = (i - 1) * (ps.deg+1)
-        idy0 = (j - 1) * (ps.deg+1)
+        idx0 = (i - 1) * (ps.deg + 1)
+        idy0 = (j - 1) * (ps.deg + 1)
 
         for k = 1:ps.deg+1, l = 1:ps.deg+1
             idx = idx0 + k

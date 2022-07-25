@@ -72,8 +72,7 @@ function flux_tmp!(
         primL[1] .* moments_conserve(MuL1, Mxi1, 0, 0) .+
         primR[1] .* moments_conserve(MuR2, Mxi2, 0, 0)
     prim = conserve_prim(w, γ)
-    tau =
-        vhs_collision_time(prim, μᵣ, ω)
+    tau = vhs_collision_time(prim, μᵣ, ω)
 
     faL = pdf_slope(primL, swL, inK)
     sw = -primL[1] .* moments_conserve_slope(faL, Mu1, Mxi1, 1)
@@ -166,7 +165,7 @@ for iter = 1:nt
             dt,
         )=#
     end
-    
+
     for i = 1:ks.ps.nx
         @. ctr[i].w += (face[i].fw - face[i+1].fw) / ks.ps.dx[i]
         ctr[i].prim .= conserve_prim(ctr[i].w, ks.gas.γ)
@@ -187,4 +186,4 @@ for i = 1:ks.ps.nx
 end
 
 plot(ks.ps.x[1:ks.ps.nx], sol0[:, 3])
-plot!(ks.ps.x[1:ks.ps.nx], sol[:, 3], line=:dash)
+plot!(ks.ps.x[1:ks.ps.nx], sol[:, 3], line = :dash)

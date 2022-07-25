@@ -27,7 +27,7 @@ loss(x, y) = sum(abs2, nn(x) - y) / size(x, 2) #+ 1e-6 * sum(sqnorm, ps)
 cb = () -> println("loss: $(loss(X1, Y1))")
 opt = ADAM()
 
-for epoch in 1:10
+for epoch = 1:10
     println("epoch: $epoch, loss: $(loss(X1, Y1))")
     gs = Flux.gradient(ps) do
         loss(X1, Y1)

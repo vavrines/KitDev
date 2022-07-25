@@ -77,24 +77,18 @@ for i in eachindex(ctr)
     _ρ = 1.0 + 0.1 * sin(2.0 * π * ks.pSpace.x[i])
     _T = 2 * 0.5 / _ρ
 
-    _prim = [_ρ, 1.0, 1/_T]
+    _prim = [_ρ, 1.0, 1 / _T]
     _w = prim_conserve(_prim, γ)
     _f = maxwellian(vSpace.u, _prim)
 
-    ctr[i] = ControlVolume1D1F(
-        ks.pSpace.x[i],
-        ks.pSpace.dx[i],
-        _w,
-        _prim,
-        _f,
-    )
+    ctr[i] = ControlVolume1D1F(ks.pSpace.x[i], ks.pSpace.dx[i], _w, _prim, _f)
 end
 
 for i = 1:ks.pSpace.nx+1
     face[i] = Interface1D1F(ks.ib.wL, ks.ib.fL)
 end
 
-t = 0.
+t = 0.0
 dt = timestep(ks, ctr, t)
 """0.000397"""
 nt = floor(ks.set.maxTime / dt) |> Int

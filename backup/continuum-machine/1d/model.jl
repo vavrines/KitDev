@@ -17,12 +17,7 @@ Y2 = Float32.(Y2) |> device
 
 isNewStart = true
 if isNewStart
-    nn = Chain(
-        Dense(7, 28, relu),
-        Dense(28, 56, relu),
-        Dense(56, 28, relu),
-        Dense(28, 2),
-    )
+    nn = Chain(Dense(7, 28, relu), Dense(28, 56, relu), Dense(56, 28, relu), Dense(28, 2))
 else
     @load "nn.jld2" nn
 end

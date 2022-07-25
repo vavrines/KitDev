@@ -122,8 +122,16 @@ for iter = 1:nt
             )
         end
     end
-    
-    KitBase.update!(ks, ctr, face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
+
+    KitBase.update!(
+        ks,
+        ctr,
+        face,
+        dt,
+        res;
+        coll = Symbol(ks.set.collision),
+        bc = Symbol(ks.set.boundary),
+    )
 
     t += dt
     #if t > ks.set.maxTime || maximum(res) < 5.e-7
@@ -150,7 +158,10 @@ KnGLL = zeros(ks.ps.nx)
 for i = 1:ks.ps.nx
     sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
     L = abs(ctr[i].w[1] / sw[1])
-    ℓ = (1/ctr[i].prim[end])^ks.gas.ω / ctr[i].prim[1] * sqrt(ctr[i].prim[end]) * ks.gas.Kn
+    ℓ =
+        (1 / ctr[i].prim[end])^ks.gas.ω / ctr[i].prim[1] *
+        sqrt(ctr[i].prim[end]) *
+        ks.gas.Kn
 
     KnGLL[i] = ℓ / L
     regime1[i] = ifelse(KnGLL[i] >= 0.05, 2, 1)

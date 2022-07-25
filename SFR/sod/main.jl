@@ -1,13 +1,21 @@
 using KitBase, FluxReconstruction, OrdinaryDiffEq, Langevin, LinearAlgebra, Plots, JLD2
 using KitBase.ProgressMeter: @showprogress
 
-function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0) where {T<:AbstractFloat}
+function FR.positive_limiter(
+    u::AbstractArray{T,3},
+    γ,
+    wp,
+    wq,
+    ll,
+    lr,
+    t0 = 1.0,
+) where {T<:AbstractFloat}
     # tensorized quadrature weights
     weights = zeros(length(wp), length(wq))
     for i in axes(weights, 1), j in axes(weights, 2)
         weights[i, j] = wp[i] * wq[j]
     end
-    
+
     # mean values
     u_mean = [sum(u[:, j, :] .* weights) for j in axes(u, 2)]
     t_mean = 1.0 / conserve_prim(u_mean, γ)[end]
@@ -41,7 +49,11 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0
         prim = conserve_prim([ρb[i], mb[i], eb[i]], γ)
 
         if 1 / prim[end] < ϵ
-            prob = NonlinearProblem{false}(FR.tj_equation, 1.0, ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ))
+            prob = NonlinearProblem{false}(
+                FR.tj_equation,
+                1.0,
+                ([ρb[i], mb[i], eb[i]], u_mean, γ, ϵ),
+            )
             sol = solve(prob, FR.NonlinearSolve.NewtonRaphson(), tol = 1e-9)
             push!(tj, sol.u)
         end
@@ -64,7 +76,7 @@ function FR.positive_limiter(u::AbstractArray{T,3}, γ, wp, wq, ll, lr, t0 = 1.0
             u[i, j, k] = t2 * (u[i, j, k] - u_mean[j]) + u_mean[j]
         end
     end
-    
+
     #=for j in axes(ρb, 2)
         ρb[:, j] .= [dot(u[:, 1, j], ll), dot(u[:, 1, j], lr)]
         eb[:, j] .= [dot(u[:, 3, j], ll), dot(u[:, 3, j], lr)]
@@ -101,7 +113,7 @@ begin
 end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
-V = vandermonde_matrix(ps.deg,ps.xpl)
+V = vandermonde_matrix(ps.deg, ps.xpl)
 VInv = inv(Array(ps.V))
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 #l2 = [2 / (2 * (i-1) + 1) for i = 1:uq.nm+1]
@@ -110,7 +122,7 @@ cd(@__DIR__)
 include("rhs.jl")
 include("../filter.jl")
 
-u = zeros(ncell, nsp, 3, uq.nm+1)
+u = zeros(ncell, nsp, 3, uq.nm + 1)
 case = ("location", nothing)[1]
 
 if case == "location"
@@ -119,14 +131,14 @@ if case == "location"
 
         for k = 1:uq.nq
             if ps.x[i] <= 0.5 + 0.05 * uq.op.quad.nodes[k]
-            #if ps.xpg[i, j] <= 0.5 + 0.05 * uq.op.quad.nodes[k] 
+                #if ps.xpg[i, j] <= 0.5 + 0.05 * uq.op.quad.nodes[k] 
                 prim[:, k] .= [1.0, 0.0, 0.5]
             else
                 prim[:, k] .= [0.125, 0.0, 0.625]
             end
         end
 
-        prim_chaos = zeros(3, uq.nm+1)
+        prim_chaos = zeros(3, uq.nm + 1)
         for k = 1:3
             prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
         end
@@ -149,7 +161,7 @@ if case == "location"
     end
 else
     for i = 1:ncell, j = 1:nsp
-        prim = zeros(3, uq.nm+1)
+        prim = zeros(3, uq.nm + 1)
         if ps.x[i] <= 0.5
             prim[1, :] .= uq.pce
             #prim[1, 1] = 1.0
@@ -197,20 +209,20 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
         )=#
 
         #su = (ũ[end, end]^2 + ũ[end-1, end]^2 + ũ[end, end-1]^2) / (sum(ũ.^2) + 1e-6)
-        su = (sum(ũ[end, :].^2) + sum(ũ[:, end].^2) - ũ[end, end]^2) / (sum(ũ.^2) + 1e-6)
-        isShock = max(
-            shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 4.0),
-        )
+        su =
+            (sum(ũ[end, :] .^ 2) + sum(ũ[:, end] .^ 2) - ũ[end, end]^2) /
+            (sum(ũ .^ 2) + 1e-6)
+        isShock = max(shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 4.0))
 
-        su = ũ[end, 1]^2 / (sum(ũ[:, 1].^2) + 1e-6)
-        sv = ũ[1, end]^2 * l2[end] / (sum(ũ[1, :].^2 .* l2) + 1e-6)
+        su = ũ[end, 1]^2 / (sum(ũ[:, 1] .^ 2) + 1e-6)
+        sv = ũ[1, end]^2 * l2[end] / (sum(ũ[1, :] .^ 2 .* l2) + 1e-6)
         #sv = ũ[1, end]^2 / (sum(ũ[1, :].^2) + 1e-6)
 
         if isShock
             #λ1 = 2e-3
             #λ2 = 1e-5
             #λ1 = dt * exp(0.875/1 * (ps.deg+1)) * 1.2
-            
+
 
             λ1 = sqrt(su) * 3.0#20
             λ2 = sqrt(sv) * 3#10
@@ -224,7 +236,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
                 FR.modal_filter!(û, λ1, λ2; filter = :l2)
                 #FR.modal_filter!(û, λ1, λ2; filter = :l2opt)
                 #FR.modal_filter!(û; filter = :lasso)
-                
+
                 #FR.modal_filter!(û, 4.5; filter = :exp)
                 #FR.modal_filter!(û, 8, 7; filter = :exp)
 
@@ -232,7 +244,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
                 #FR.modal_filter!(û, 5e-2, 1e-2; filter = :l2opt)
 
                 #FR.modal_filter!(û, 2e-3, 1e-5; filter = :l2)
-                
+
                 itg.u[i, :, s, :] .= ps.V * û
             end
         end
@@ -241,7 +253,7 @@ end
 
 begin
     x = zeros(ncell * nsp)
-    w = zeros(ncell * nsp, 3, uq.nm+1)
+    w = zeros(ncell * nsp, 3, uq.nm + 1)
     for i = 1:ncell
         idx0 = (i - 1) * nsp
 
@@ -253,9 +265,9 @@ begin
         end
     end
 
-    sol = zeros(ncell*nsp, 3, 2)
+    sol = zeros(ncell * nsp, 3, 2)
     for i in axes(sol, 1)
-        p1 = zeros(3, uq.nm+1)
+        p1 = zeros(3, uq.nm + 1)
         p1 = uq_conserve_prim(w[i, :, :], γ, uq)
         p1[end, :] .= lambda_tchaos(p1[end, :], 1.0, uq)
 
@@ -265,12 +277,12 @@ begin
         end
     end
 
-    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-    plot!(pic1, x, sol[:, 2, 1], label="U")
-    plot!(pic1, x, sol[:, 3, 1], label="T")
-    pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
-    plot!(pic2, x, sol[:, 2, 2], label="U")
-    plot!(pic2, x, sol[:, 3, 2], label="T")
+    pic1 = plot(x, sol[:, 1, 1], label = "ρ", xlabel = "x", ylabel = "mean")
+    plot!(pic1, x, sol[:, 2, 1], label = "U")
+    plot!(pic1, x, sol[:, 3, 1], label = "T")
+    pic2 = plot(x, sol[:, 1, 2], label = "ρ", xlabel = "x", ylabel = "std")
+    plot!(pic2, x, sol[:, 2, 2], label = "U")
+    plot!(pic2, x, sol[:, 3, 2], label = "T")
     plot(pic1, pic2)
 end
 

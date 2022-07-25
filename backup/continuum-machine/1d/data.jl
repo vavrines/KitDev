@@ -10,7 +10,7 @@ Y = Float32.([1.0, 0.0])
 function init_field!(ks, ctr, face)
     for i in eachindex(ctr)
         prim = [2.0 * rand(), 0.0, 1 / rand()]
-    
+
         ctr[i].prim .= prim
         ctr[i].w .= prim_conserve(prim, ks.gas.γ)
         ctr[i].f .= maxwellian(ks.vs.u, prim)
@@ -90,7 +90,7 @@ end
     nt = Int(ks.set.maxTime ÷ dt) + 1
     res = zeros(3)
     for iter = 1:2000#nt
-        if iter%13 == 0
+        if iter % 13 == 0
             for i = 1:ks.ps.nx
                 sw = (ctr[i+1].w .- ctr[i-1].w) / ks.ps.dx[i] / 2.0
                 x, y = regime_data(ks, ctr[i].w, ctr[i].prim, sw, ctr[i].f)
@@ -98,10 +98,18 @@ end
                 Y = hcat(Y, y)
             end
         end
-        
+
         reconstruct!(ks, ctr)
         evolve!(ks, ctr, face, dt; mode = Symbol(ks.set.flux), bc = Symbol(ks.set.boundary))
-        KitBase.update!(ks, ctr, face, dt, res; coll = Symbol(ks.set.collision), bc = Symbol(ks.set.boundary))
+        KitBase.update!(
+            ks,
+            ctr,
+            face,
+            dt,
+            res;
+            coll = Symbol(ks.set.collision),
+            bc = Symbol(ks.set.boundary),
+        )
 
         t += dt
         #if t > ks.set.maxTime || maximum(res) < 5.e-7
@@ -122,7 +130,7 @@ function split_dataset(X, Y, ratio = 9::Integer)
     x_test = [X[:, j] for j in idx2]
     y_train = [Y[:, j] for j in idx1]
     y_test = [Y[:, j] for j in idx2]
-    
+
     X_train = zeros(eltype(X), size(X, 1), length(x_train))
     Y_train = zeros(eltype(X), size(Y, 1), length(x_train))
     X_test = zeros(eltype(X), size(X, 1), length(x_test))
@@ -157,4 +165,4 @@ A = pdf_slope(ctr[i].prim, sw, ks.gas.K)
 fr = chapman_enskog(ks.vs.u, ctr[i].prim, a, A, tau)
 
 plot(ks.vs.u, ctr[i].f)
-plot!(ks.vs.u, fr, line=:dash)
+plot!(ks.vs.u, fr, line = :dash)

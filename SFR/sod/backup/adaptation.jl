@@ -24,7 +24,7 @@ begin
 end
 ps = FRPSpace1D(x0, x1, ncell, deg)
 uq = UQ1D(nr, nRec, parameter1, parameter2, opType, uqMethod)
-V = vandermonde_matrix(ps.deg,ps.xpl)
+V = vandermonde_matrix(ps.deg, ps.xpl)
 VInv = inv(Array(ps.V))
 l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 
@@ -36,7 +36,7 @@ begin
     isRandomLocation = false#true
     isPrefilter = false#true
 
-    u = zeros(ncell, nsp, 3, uq.nm+1)
+    u = zeros(ncell, nsp, 3, uq.nm + 1)
     if isRandomLocation
         # stochastic location
         for i = 1:ncell, j = 1:nsp
@@ -50,7 +50,7 @@ begin
                 end
             end
 
-            prim_chaos = zeros(3, uq.nm+1)
+            prim_chaos = zeros(3, uq.nm + 1)
             for k = 1:3
                 prim_chaos[k, :] .= ran_chaos(prim[k, :], uq)
             end
@@ -60,7 +60,7 @@ begin
     else
         # stochastic density
         for i = 1:ncell, j = 1:nsp
-            prim = zeros(3, uq.nm+1)
+            prim = zeros(3, uq.nm + 1)
             if ps.x[i] <= 0.5
                 #prim[1, :] .= uq.pce
                 prim[1, 1] = 1.0
@@ -138,8 +138,11 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
         end=#
 
         ũ = VInv * itg.u[i, :, 1, :]
-        su = maximum([ũ[end, j]^2 / sum(ũ[:, j].^2) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :].^2 .* l2) for j = 1:nsp])
+        su = maximum([ũ[end, j]^2 / sum(ũ[:, j] .^ 2) for j = 1:uq.nm+1])
+        sv = maximum([
+            ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / sum(ũ[j, :] .^ 2 .* l2) for
+            j = 1:nsp
+        ])
         isShock = max(shock_detector(log10(su), ps.deg), shock_detector(log10(sv), ps.deg))
         if isShock
             λ1 = dt * (su)
@@ -157,14 +160,14 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
         end
 
         tmp = @view itg.u[i, :, :, 1]
-        positive_limiter(tmp, γ, ps.wp/2, ps.ll, ps.lr)
+        positive_limiter(tmp, γ, ps.wp / 2, ps.ll, ps.lr)
 
     end
 end
 
 begin
     x = zeros(ncell * nsp)
-    w = zeros(ncell * nsp, 3, uq.nm+1)
+    w = zeros(ncell * nsp, 3, uq.nm + 1)
     for i = 1:ncell
         idx0 = (i - 1) * nsp
 
@@ -176,9 +179,9 @@ begin
         end
     end
 
-    sol = zeros(ncell*nsp, 3, 2)
+    sol = zeros(ncell * nsp, 3, 2)
     for i in axes(sol, 1)
-        p1 = zeros(3, uq.nm+1)
+        p1 = zeros(3, uq.nm + 1)
         p1 = uq_conserve_prim(w[i, :, :], γ, uq)
         p1[end, :] .= lambda_tchaos(p1[end, :], 1.0, uq)
 
@@ -188,17 +191,17 @@ begin
         end
     end
 
-    pic1 = plot(x, sol[:, 1, 1], label="ρ", xlabel="x", ylabel="mean")
-    plot!(pic1, x, sol[:, 2, 1], label="U")
-    plot!(pic1, x, sol[:, 3, 1], label="T")
-    pic2 = plot(x, sol[:, 1, 2], label="ρ", xlabel="x", ylabel="std")
-    plot!(pic2, x, sol[:, 2, 2], label="U")
-    plot!(pic2, x, sol[:, 3, 2], label="T")
+    pic1 = plot(x, sol[:, 1, 1], label = "ρ", xlabel = "x", ylabel = "mean")
+    plot!(pic1, x, sol[:, 2, 1], label = "U")
+    plot!(pic1, x, sol[:, 3, 1], label = "T")
+    pic2 = plot(x, sol[:, 1, 2], label = "ρ", xlabel = "x", ylabel = "std")
+    plot!(pic2, x, sol[:, 2, 2], label = "U")
+    plot!(pic2, x, sol[:, 3, 2], label = "T")
     plot(pic1, pic2)
 end
 
-plot(x, sol0[:, 1, 2], label="No filter", xlabel="x", ylabel="ρ")
-plot!(x, sol[:, 1, 2], label="adaptive L²")
+plot(x, sol0[:, 1, 2], label = "No filter", xlabel = "x", ylabel = "ρ")
+plot!(x, sol[:, 1, 2], label = "adaptive L²")
 
 
 

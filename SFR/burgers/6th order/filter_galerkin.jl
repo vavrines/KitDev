@@ -30,11 +30,11 @@ l2 = [uq.t2Product[j-1, j-1] for j = 1:uq.nm+1]
 cd(@__DIR__)
 include("../../filter.jl")
 
-function l2_strength(a1, a2=a1)
-    (1/a1 - 1)/2/ps.deg^2 / (ps.deg+1)^2, (1/a2-1)/2/uq.nm^2 / (uq.nm+1)^2
+function l2_strength(a1, a2 = a1)
+    (1 / a1 - 1) / 2 / ps.deg^2 / (ps.deg + 1)^2, (1 / a2 - 1) / 2 / uq.nm^2 / (uq.nm + 1)^2
 end
 
-u0 = zeros(ncell, nsp, uq.nm+1)
+u0 = zeros(ncell, nsp, uq.nm + 1)
 u0q = zeros(ncell, nsp, uq.nq)
 let p0 = 0.5, p1 = 1.5, σ = 0.2, val0 = 11.0, val1 = 1.0
     for i = 1:ncell
@@ -42,7 +42,8 @@ let p0 = 0.5, p1 = 1.5, σ = 0.2, val0 = 11.0, val1 = 1.0
             if ps.x[i] < p0 + σ * uq.pceSample[j]
                 u0q[i, :, j] .= val0
             elseif p0 + σ * uq.pceSample[j] <= ps.x[i] <= p1 + σ * uq.pceSample[j]
-                u0q[i, :, j] .= val0 + (val1 - val0) / (p0 - p1) * (p0 + σ * uq.pceSample[j] - ps.x[i])
+                u0q[i, :, j] .=
+                    val0 + (val1 - val0) / (p0 - p1) * (p0 + σ * uq.pceSample[j] - ps.x[i])
             else
                 u0q[i, :, j] .= val1
             end
@@ -71,7 +72,7 @@ function dudt!(du, u, p, t)
         end
     end
 
-    f = zeros(ncell, nsp, nm+1)
+    f = zeros(ncell, nsp, nm + 1)
     @threads for j = 1:nsp
         for i = 1:ncell
             _f = zeros(nq)
@@ -83,8 +84,8 @@ function dudt!(du, u, p, t)
         end
     end
 
-    u_face = zeros(ncell, nm+1, 2)
-    f_face = zeros(ncell, nm+1, 2)
+    u_face = zeros(ncell, nm + 1, 2)
+    f_face = zeros(ncell, nm + 1, 2)
     @inbounds @threads for k = 1:nm+1
         for i = 1:ncell
             u_face[i, k, 1] = dot(u[i, :, k], lr)
@@ -94,9 +95,10 @@ function dudt!(du, u, p, t)
         end
     end
 
-    f_interaction = zeros(ncell + 1, nm+1)
+    f_interaction = zeros(ncell + 1, nm + 1)
     @threads for i = 2:ncell
-        @inbounds f_interaction[i, :] .= (f_face[i-1, :, 1] .+ f_face[i, :, 2]) ./ 2 - 
+        @inbounds f_interaction[i, :] .=
+            (f_face[i-1, :, 1] .+ f_face[i, :, 2]) ./ 2 -
             (Δx[i-1] + Δx[i]) / 2 * (u_face[i, :, 2] .- u_face[i-1, :, 1])
     end
     #f_interaction[1, :] .= (f_face[ncell, :, 1] .+ f_face[1, :, 2]) ./ 2 - 
@@ -112,12 +114,11 @@ function dudt!(du, u, p, t)
     idx = 2:ncell-1
     @threads for l = 1:nm+1
         for i in idx, ppp1 = 1:nsp
-            @inbounds du[i, ppp1, l] =
-                -(
-                    rhs1[i, ppp1, l] +
-                    (f_interaction[i, l] - f_face[i, l, 2]) * dgl[ppp1] +
-                    (f_interaction[i+1, l] - f_face[i, l, 1]) * dgr[ppp1]
-                )
+            @inbounds du[i, ppp1, l] = -(
+                rhs1[i, ppp1, l] +
+                (f_interaction[i, l] - f_face[i, l, 2]) * dgl[ppp1] +
+                (f_interaction[i+1, l] - f_face[i, l, 1]) * dgr[ppp1]
+            )
         end
     end
 end
@@ -149,8 +150,10 @@ itg = init(prob, Tsit5(), saveat = tspan[2], adaptive = false, dt = dt)
             itg.u[i, :, :] .= ps.V * ũ
         end=#
 
-        su = maximum([ũ[end, j]^2 / (sum(ũ[:, j].^2) + 1e-4) for j = 1:uq.nm+1])
-        sv = maximum([ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / (sum(ũ[j, :].^2 .* l2) + 1e-4) for j = 1:nsp])
+        su = maximum([ũ[end, j]^2 / (sum(ũ[:, j] .^ 2) + 1e-4) for j = 1:uq.nm+1])
+        sv = maximum([
+            ũ[j, end]^2 * uq.t2Product[uq.nm, uq.nm] / (sum(ũ[j, :] .^ 2 .* l2) + 1e-4) for j = 1:nsp
+        ])
         isShock = max(
             #shock_detector(log10(su), ps.deg, -3 * log10(ps.deg), 1.0),
             shock_detector(log10(sv), ps.deg, -2 * log10(ps.deg), 1.0),
@@ -172,12 +175,12 @@ itg = init(prob, Tsit5(), saveat = tspan[2], adaptive = false, dt = dt)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2)
             #FR.modal_filter!(ũ, λ1, λ2; filter = :l2opt)
             #FR.modal_filter!(ũ, PhiL1; filter = :lasso)
-            FR.modal_filter!(ũ, 3, 3, 36*dt; filter = :exp)
+            FR.modal_filter!(ũ, 3, 3, 36 * dt; filter = :exp)
 
 
             itg.u[i, :, :] .= ps.V * ũ
         end
-    
+
         #=tmp = [chaos_ran(itg.u[i, j, :], uq) for j = 1:nsp]
         uquad = [tmp[i][j] for i=1:nsp, j=1:uq.nq]
         δu = [maximum(uquad[:, j]) - minimum(uquad[:, j]) for j = 1:uq.nm+1] |> maximum
@@ -192,7 +195,7 @@ end
 
 begin
     x = zeros(ncell * nsp)
-    w = zeros(ncell * nsp, uq.nm+1)
+    w = zeros(ncell * nsp, uq.nm + 1)
     for i = 1:ncell
         idx0 = (i - 1) * nsp
 
@@ -204,19 +207,19 @@ begin
         end
     end
 
-    sol = zeros(ncell*nsp, 2)
+    sol = zeros(ncell * nsp, 2)
     for i in axes(sol, 1)
         sol[i, 1] = mean(w[i, :], uq.op)
         sol[i, 2] = std(w[i, :], uq.op)
     end
 
-    pic1 = plot(x, sol[:, 1], label="u", xlabel="x", ylabel="mean")
-    pic2 = plot(x, sol[:, 2], label="u", xlabel="x", ylabel="std")
+    pic1 = plot(x, sol[:, 1], label = "u", xlabel = "x", ylabel = "mean")
+    pic2 = plot(x, sol[:, 2], label = "u", xlabel = "x", ylabel = "std")
     plot(pic1, pic2)
 end
 
-plot(x, sol0[:, 2], label="Lasso", line=:dash)
-plot!(x, sol[:, 2], label="L2", xlabel="x", ylabel="std")
+plot(x, sol0[:, 2], label = "Lasso", line = :dash)
+plot!(x, sol[:, 2], label = "L2", xlabel = "x", ylabel = "std")
 
 uξ = chaos_ran(itg.u[53, 2, :], uq)
 plot(uq.op.quad.nodes, uξ)

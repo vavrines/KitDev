@@ -14,13 +14,7 @@ begin
     knudsen = 1e-2
 end
 
-set = Setup(
-    case = "sod",
-    space = "1d1f1v",
-    boundary = "fix",
-    cfl = 0.2,
-    maxTime = 0.1,
-)
+set = Setup(case = "sod", space = "1d1f1v", boundary = "fix", cfl = 0.2, maxTime = 0.1)
 
 ps = FRPSpace1D(x0, x1, nx, deg)
 vs = VSpace1D(u0, u1, nu)
@@ -56,8 +50,8 @@ function mol!(du, u, p, t)
         end
     end
 
-    u_interaction = zeros(eltype(u), ncell+1, nu)
-    f_interaction = zeros(eltype(u), ncell+1, nu)
+    u_interaction = zeros(eltype(u), ncell + 1, nu)
+    f_interaction = zeros(eltype(u), ncell + 1, nu)
     @inbounds Threads.@threads for i = 2:ncell
         @. u_interaction[i, :] = u_face[i, :, 2] * (1.0 - δ) + u_face[i-1, :, 1] * δ
         @. f_interaction[i, :] = f_face[i, :, 2] * (1.0 - δ) + f_face[i-1, :, 1] * δ
@@ -93,7 +87,7 @@ end
 begin
     u0 = zeros(nx, nu, nsp)
     for i = 1:nx, ppp1 = 1:nsp
-        if i <= nx÷2
+        if i <= nx ÷ 2
             _ρ = 1.0
             _λ = 0.5
         else
@@ -108,8 +102,18 @@ end
 tspan = (0.0, set.maxTime)
 dt = set.cfl * minimum(ps.dx) / (vs.u1 + 2)
 nt = floor(tspan[2] / dt) |> Int
-p = (ps.dx, vs.u, vs.weights, δ, ref_vhs_vis(knudsen, 1.0, 0.5), 
-    ps.ll, ps.lr, ps.dl, ps.dhl, ps.dhr)
+p = (
+    ps.dx,
+    vs.u,
+    vs.weights,
+    δ,
+    ref_vhs_vis(knudsen, 1.0, 0.5),
+    ps.ll,
+    ps.lr,
+    ps.dl,
+    ps.dhl,
+    ps.dhr,
+)
 
 prob = ODEProblem(mol!, u0, tspan, p)
 itg = init(
@@ -145,5 +149,5 @@ begin
     end
 end
 
-plot(x[1:end], markeralpha=0.6, prim[1:end, 1:2])
-plot!(x[1:end], markeralpha=0.6, prim[1:end, 4])
+plot(x[1:end], markeralpha = 0.6, prim[1:end, 1:2])
+plot!(x[1:end], markeralpha = 0.6, prim[1:end, 4])

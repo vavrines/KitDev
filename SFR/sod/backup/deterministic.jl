@@ -74,12 +74,11 @@ function dudt!(du, u, p, t)
 
     idx = 2:ncell-1 # ending points are Dirichlet
     for i in idx, ppp1 = 1:nsp, k = 1:3
-        du[i, ppp1, k] =
-            -(
-                rhs1[i, ppp1, k] +
-                (f_interaction[i, k] / J[i] - f_face[i, k, 2]) * dgl[ppp1] +
-                (f_interaction[i+1, k] / J[i] - f_face[i, k, 1]) * dgr[ppp1]
-            )
+        du[i, ppp1, k] = -(
+            rhs1[i, ppp1, k] +
+            (f_interaction[i, k] / J[i] - f_face[i, k, 2]) * dgl[ppp1] +
+            (f_interaction[i+1, k] / J[i] - f_face[i, k, 1]) * dgr[ppp1]
+        )
     end
 end
 
@@ -92,7 +91,7 @@ itg = init(prob, Midpoint(), saveat = tspan[2], adaptive = false, dt = dt)
 @showprogress for iter = 1:nt
     for i = 1:ps.nx
         ũ = VInv * itg.u[i, :, 1]
-        su = ũ[end]^2 / sum(ũ.^2)
+        su = ũ[end]^2 / sum(ũ .^ 2)
         isShock = shock_detector(log10(su), ps.deg)
 
         if isShock

@@ -14,14 +14,14 @@ begin
         0.1, # cfl
         1.0, # time
     )
-    ps = FRPSpace2D(0.0, 2.0, 100, 0.0, 1.0, 50, set.interpOrder-1, 1, 1)
+    ps = FRPSpace2D(0.0, 2.0, 100, 0.0, 1.0, 50, set.interpOrder - 1, 1, 1)
     vs = nothing
     gas = Gas(
         1e-6,
         1.12, # Mach
         1.0,
         3.0, # K
-        7/5,
+        7 / 5,
         0.81,
         1.0,
         0.5,
@@ -87,8 +87,8 @@ end
 begin
     sol = zeros(size(x)..., 4, 2)
     for i = 1:ps.nx, j = 1:ps.ny
-        idx0 = (i - 1) * (ps.deg+1)
-        idy0 = (j - 1) * (ps.deg+1)
+        idx0 = (i - 1) * (ps.deg + 1)
+        idy0 = (j - 1) * (ps.deg + 1)
 
         for k = 1:ps.deg+1, l = 1:ps.deg+1
             idx = idx0 + k
@@ -210,8 +210,8 @@ savefig("sv_t1_t_std.pdf")
 begin
     sol = zeros(size(x)..., 4, 2)
     for i = 1:ps.nx, j = 1:ps.ny
-        idx0 = (i - 1) * (ps.deg+1)
-        idy0 = (j - 1) * (ps.deg+1)
+        idx0 = (i - 1) * (ps.deg + 1)
+        idy0 = (j - 1) * (ps.deg + 1)
 
         for k = 1:ps.deg+1, l = 1:ps.deg+1
             idx = idx0 + k
@@ -232,10 +232,10 @@ contourf(
     x[:, 1],
     y[1, :],
     sol[:, :, 1, 1]',
-    ratio=1,
-    ylims=(0,1),
-    xlabel="x",
-    ylabel="y",
+    ratio = 1,
+    ylims = (0, 1),
+    xlabel = "x",
+    ylabel = "y",
 )
 
 savefig("sv_t03_mean.pdf")
@@ -244,10 +244,10 @@ contourf(
     x[:, 1],
     y[1, :],
     sol[:, :, 1, 2]',
-    ratio=1,
-    ylims=(0,1),
-    xlabel="x",
-    ylabel="y",
+    ratio = 1,
+    ylims = (0, 1),
+    xlabel = "x",
+    ylabel = "y",
 )
 
 savefig("sv_t03_std.pdf")

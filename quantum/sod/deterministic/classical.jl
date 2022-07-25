@@ -36,15 +36,7 @@ function ib_condition(set, ps, vs, gas)
     primL = KB.conserve_prim(wL, gas.γ)
     primR = KB.conserve_prim(wR, gas.γ)
 
-    p = (
-        x0 = ps.x0,
-        x1 = ps.x1,
-        wL = wL,
-        wR = wR,
-        primL = primL,
-        primR = primR,
-        γ = gas.γ,
-    )
+    p = (x0 = ps.x0, x1 = ps.x1, wL = wL, wR = wR, primL = primL, primR = primR, γ = gas.γ)
 
     fw = function (x, p)
         if x <= (p.x0 + p.x1) / 2
@@ -111,7 +103,7 @@ for i = 1:ks.ps.nx
     sol[i, 4:6] .= ctr[i].prim
 end
 begin
-    fig = lines(ks.ps.x[1:ks.ps.nx], 1 ./ sol[:, 3]; label = "f", xlabel="x")
+    fig = lines(ks.ps.x[1:ks.ps.nx], 1 ./ sol[:, 3]; label = "f", xlabel = "x")
     axislegend()
     fig
 end
