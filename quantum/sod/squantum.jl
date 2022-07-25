@@ -19,9 +19,10 @@ vs = KB.VSpace1D(-5, 5, 60)
 gas = KB.Gas(Kn = 1e-3, γ = 2)
 
 function ib_condition(set, ps, vs, gas)
-    primL = [0.5, 0.0, 0.5] # [A, U, λ]
+    # [A, U, λ]
+    primL = [0.5, 0.0, 0.5]
     primR = [0.1, 0.0, 0.625]
-    β = gas.γ
+    β = gas.γ # quantum
 
     wL = quantum_prim_conserve(primL, β)
     wR = quantum_prim_conserve(primR, β)
@@ -137,13 +138,10 @@ res = zeros(3)
 dt = timestep(ks, uq, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
-function st!(KS, uq, faceL, cell, faceR,
-    dt,
-    dx,
-    RES,
-    AVG,
-    coll = :bgk::Symbol,
-) where {T1<:AbstractSolverSet} # 1D1F1V
+function st!(KS, uq, faceL, cell, faceR, p, coll = :bgk) # 1D1F1V
+
+    dt, dx, RES, AVG = p
+
     #--- update conservative flow variables: step 1 ---#
     # w^n
     w_old = deepcopy(cell.w)
@@ -194,7 +192,7 @@ function st!(KS, uq, faceL, cell, faceR,
     @. AVG += abs(cell.w[:, 1])
 end
 
-function up!(KS, uq, ctr, face, dt, residual; coll = :bgk)
+#=function up!(KS, uq, ctr, face, dt, residual; coll = :bgk)
     sumRes = zeros(3)
     sumAvg = zeros(3)
 
@@ -205,7 +203,7 @@ function up!(KS, uq, ctr, face, dt, residual; coll = :bgk)
     for i in axes(residual, 1)
         residual[i] = sqrt(sumRes[i] * KS.pSpace.nx) / (sumAvg[i] + 1.e-7)
     end
-end
+end=#
 
 function ev!(KS, uq, ctr, face, dt)
     @inbounds Threads.@threads for i in eachindex(face)

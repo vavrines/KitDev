@@ -814,7 +814,9 @@ version = "1.3.0"
 
 [[deps.Langevin]]
 deps = ["KitBase", "PolyChaos", "Reexport"]
-git-tree-sha1 = "974bfefa4fe1398a45d3a8f6486fa7d259d04b19"
+git-tree-sha1 = "e63549e2b2f772dbe429ef81356ae4a8091a323f"
+repo-rev = "master"
+repo-url = "https://github.com/vavrines/Langevin.jl.git"
 uuid = "42433972-eea5-42bb-ab72-392315b4e8df"
 version = "0.2.5"
 
