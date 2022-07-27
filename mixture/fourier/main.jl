@@ -3,7 +3,7 @@ using KitBase.ProgressMeter: @showprogress
 
 cd(@__DIR__)
 
-set = Setup(space = "1d2f1v", nSpecies = 2, boundary = "maxwell", maxTime = 10)
+set = Setup(space = "1d2f1v", nSpecies = 2, boundary = "maxwell", maxTime = 100)
 ps = PSpace1D(0.0, 1.0, 100)
 vs = MVSpace1D(-5, 5, -8, 8, 72)
 gas = Mixture(Kn = 1e-0, K = 2.0)
@@ -70,15 +70,25 @@ ctr, face = init_fvm(ks)
 begin
     iter = 0
     res = zeros(3, 2)
-    simTime = 0.0
-    dt = timestep(ks, ctr, simTime)
+    t = 0.0
+    dt = timestep(ks, ctr, t)
     nt = Int(floor(ks.set.maxTime / dt))
 end
 
-@showprogress for iter = 1:nt*20
+@showprogress for iter = 1:nt
+#for iter = 1:nt
     reconstruct!(ks, ctr)
     evolve!(ks, ctr, face, dt)
     update!(ks, ctr, face, dt, res; bc = :maxwell)
+
+    t += dt
+    #=if iter % 1858 == 0
+        n = 0.0
+        for i = 1:ks.ps.nx
+            n += ctr[i].w[1, 1] / ks.gas.mi + ctr[i].w[1, 2] / ks.gas.me
+        end
+        @show t, n
+    end=#
 
     if iter % 2000 == 0
         println("")

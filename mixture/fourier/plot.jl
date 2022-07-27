@@ -69,6 +69,11 @@ end
 sol = zeros(ks.ps.nx, 3, 2)
 for i in axes(sol, 1)
     sol[i, :, :] .= ctr[i].prim
+
+    sol[i, 1, 1] = sol[i, 1, 1] / ks.gas.mi
+    sol[i, 1, 2] = sol[i, 1, 2] / ks.gas.me
+    sol[i, 3, 1] = ks.gas.mi / sol[i, 3, 1]
+    sol[i, 3, 2] = ks.gas.me / sol[i, 3, 2]
 end
 
 plot(ks.ps.x, sol[:, 1, 1] ./ ks.gas.mi)
@@ -76,3 +81,6 @@ plot!(ks.ps.x, sol[:, 1, 2] ./ ks.gas.me)
 
 plot(ks.ps.x, ks.gas.mi ./ sol[:, 3, 1])
 plot!(ks.ps.x, ks.gas.me ./ sol[:, 3, 2])
+
+write_tec(ks.ps.x, sol[:, :, 1])
+write_tec(ks.ps.x, sol[:, :, 2])

@@ -773,11 +773,11 @@ version = "0.6.4"
 
 [[deps.KitBase]]
 deps = ["BSON", "CSV", "CUDA", "Dates", "DiffEqOperators", "Distributed", "Distributions", "FFTW", "FastGaussQuadrature", "FileIO", "FiniteMesh", "ForwardDiff", "JLD2", "LinearAlgebra", "MultivariatePolynomials", "OffsetArrays", "Optim", "Printf", "PyCall", "RecipesBase", "Reexport", "SpecialFunctions", "StaticArrays", "StructArrays", "TypedPolynomials", "WriteVTK"]
-git-tree-sha1 = "05ec7122692cb46d4b33c599025751158ab222e0"
+git-tree-sha1 = "4d0ea081b4f14046033759c698625e8580334564"
 repo-rev = "dev"
 repo-url = "https://github.com/vavrines/KitBase.jl.git"
 uuid = "86eed249-3a28-466f-8d3a-596821e1af9a"
-version = "0.9.0"
+version = "0.9.1"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
