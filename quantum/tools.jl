@@ -59,3 +59,45 @@ function quantum_prim_conserve(prim, β)
 
     return w
 end
+
+function st!(KS, uq, faceL, cell, faceR, p, coll = :bgk)
+    dt, dx, RES, AVG = p
+
+    w_old = deepcopy(cell.w)
+    prim_old = deepcopy(cell.prim)
+
+    @. cell.w += (faceL.fw - faceR.fw) / dx
+
+    wRan = chaos_ran(cell.w, 2, uq)
+
+    primRan = zero(wRan)
+    for j in axes(wRan, 2)
+        primRan[:, j] .= quantum_conserve_prim(wRan[:, j], KS.gas.γ)
+    end
+
+    #cell.w .= ran_chaos(wRan, 2, uq)
+    cell.prim .= ran_chaos(primRan, 2, uq)
+
+    #@. cell.f += (faceL.ff - faceR.ff) / cell.dx
+    fRan =
+        chaos_ran(cell.f, 2, uq) .+
+        (chaos_ran(faceL.ff, 2, uq) .- chaos_ran(faceR.ff, 2, uq)) ./ dx
+
+    tau = [KS.gas.Kn / wRan[1, j] for j in axes(wRan, 2)]
+
+    gRan = zeros(KS.vSpace.nu, uq.op.quad.Nquad)
+    for j in axes(gRan, 2)
+        gRan[:, j] .= fd_equilibrium(KS.vs.u, primRan[:, j], ks.gas.γ)
+    end
+
+    for j in axes(fRan, 2)
+        @. fRan[:, j] = (fRan[:, j] + dt / tau[j] * gRan[:, j]) / (1.0 + dt / tau[j])
+    end
+
+    cell.f .= ran_chaos(fRan, 2, uq)
+
+    @. RES += (w_old[:, 1] - cell.w[:, 1])^2
+    @. AVG += abs(cell.w[:, 1])
+
+    return nothing
+end

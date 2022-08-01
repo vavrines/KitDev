@@ -10,7 +10,7 @@ set = KB.Setup(
     space = "1d1f1v",
     interpOrder = 2,
     boundary = ["fix", "fix"],
-    maxTime = 0.12,
+    maxTime = 0.15,
     cfl = 0.5,
 )
 
@@ -126,101 +126,9 @@ res = zeros(3)
 dt = timestep(ks, uq, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
-function st!(KS, uq, faceL, cell, faceR, p, coll = :bgk) # 1D1F1V
-
-    dt, dx, RES, AVG = p
-
-    #--- update conservative flow variables: step 1 ---#
-    # w^n
-    w_old = deepcopy(cell.w)
-    prim_old = deepcopy(cell.prim)
-
-    # flux -> w^{n+1}
-    @. cell.w += (faceL.fw - faceR.fw) / dx
-
-    wRan = chaos_ran(cell.w, 2, uq)
-
-    primRan = zero(wRan)
-    for j in axes(wRan, 2)
-        primRan[:, j] .= quantum_conserve_prim(wRan[:, j], KS.gas.γ)
-    end
-
-    # locate variables on random quadrature points
-
-    #primRan = chaos_ran(cell.prim, 2, uq)
-
-    #cell.w .= ran_chaos(wRan, 2, uq)
-    cell.prim .= ran_chaos(primRan, 2, uq)
-
-    #--- update particle distribution function ---#
-    # flux -> f^{n+1}
-    #@. cell.f += (faceL.ff - faceR.ff) / cell.dx
-
-    fRan =
-        chaos_ran(cell.f, 2, uq) .+
-        (chaos_ran(faceL.ff, 2, uq) .- chaos_ran(faceR.ff, 2, uq)) ./ dx
-
-    # source -> f^{n+1}
-    tau = [KS.gas.Kn / wRan[1, j] for j in axes(wRan, 2)]
-
-    gRan = zeros(KS.vSpace.nu, uq.op.quad.Nquad)
-    for j in axes(gRan, 2)
-        gRan[:, j] .= fd_equilibrium(KS.vs.u, primRan[:, j], ks.gas.γ)
-    end
-
-    # BGK term
-    for j in axes(fRan, 2)
-        @. fRan[:, j] = (fRan[:, j] + dt / tau[j] * gRan[:, j]) / (1.0 + dt / tau[j])
-    end
-
-    cell.f .= ran_chaos(fRan, 2, uq)
-
-    #--- record residuals ---#
-    @. RES += (w_old[:, 1] - cell.w[:, 1])^2
-    @. AVG += abs(cell.w[:, 1])
-end
-
-#=function up!(KS, uq, ctr, face, dt, residual; coll = :bgk)
-    sumRes = zeros(3)
-    sumAvg = zeros(3)
-
-    @inbounds Threads.@threads for i = 2:KS.pSpace.nx-1
-        st!(KS, uq, face[i], ctr[i], face[i+1], dt, KS.ps.dx[i], sumRes, sumAvg, coll)
-    end
-
-    for i in axes(residual, 1)
-        residual[i] = sqrt(sumRes[i] * KS.pSpace.nx) / (sumAvg[i] + 1.e-7)
-    end
-end=#
-
-function ev!(KS, uq, ctr, face, dt)
-    @inbounds Threads.@threads for i in eachindex(face)
-        ufgalerkin!(KS, uq, ctr[i-1], face[i], ctr[i], dt, KS.ps.dx[i-1], KS.ps.dx[i])
-    end
-end
-
-function ufgalerkin!(KS, uq, cellL, face, cellR, dt, dxL, dxR)
-    @inbounds for j in axes(cellL.f, 2)
-        fw = @view face.fw[:, j]
-        ff = @view face.ff[:, j]
-
-        flux_kfvs!(
-            fw,
-            ff,
-            cellL.f[:, j] .+ 0.5 .* dxL .* cellL.sf[:, j],
-            cellR.f[:, j] .- 0.5 .* dxR .* cellR.sf[:, j],
-            KS.vSpace.u,
-            KS.vSpace.weights,
-            dt,
-            cellL.sf[:, j],
-            cellR.sf[:, j],
-        )
-    end
-end
-
 @showprogress for iter = 1:nt
-    ev!(ks, uq, ctr, face, dt)
-    up!(ks, uq, ctr, face, dt, res)
+    evolve!(ks, uq, ctr, face, dt)
+    update!(ks, uq, ctr, face, dt, res; fn = st!)
 end
 
 sol = zeros(ks.ps.nx, 3)
