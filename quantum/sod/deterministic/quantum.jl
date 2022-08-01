@@ -83,22 +83,7 @@ res = zeros(3)
 dt = KB.timestep(ks, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
-function qstep!(
-    w,
-    prim,
-    f,
-    fwL,
-    ffL,
-    fwR,
-    ffR,
-    u,
-    β,
-    Kn,
-    dx,
-    dt,
-    RES,
-    AVG,
-)
+function qstep!(w, prim, f, fwL, ffL, fwR, ffR, u, β, Kn, dx, dt, RES, AVG)
 
     #--- store W^n and calculate H^n,\tau^n ---#
     w_old = deepcopy(w)
@@ -122,15 +107,7 @@ function qstep!(
 
 end
 
-function qstep!(
-    KS,
-    cell,
-    faceL,
-    faceR,
-    p,
-    coll = :bgk;
-    st = step!,
-)
+function qstep!(KS, cell, faceL, faceR, p, coll = :bgk; st = step!)
     dt, dx, RES, AVG = p
     qstep!(
         cell.w,
