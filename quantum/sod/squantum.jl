@@ -127,6 +127,7 @@ dt = timestep(ks, uq, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
 @showprogress for iter = 1:nt
+    KB.reconstruct!(ks, ctr)
     evolve!(ks, uq, ctr, face, dt)
     update!(ks, uq, ctr, face, dt, res; fn = st!)
 end
