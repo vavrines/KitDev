@@ -17,7 +17,7 @@ tsteps = KB.linspace(tspan[1], tspan[2], 31)
 
 # quantum
 f0 = 0.5 * (1 / π)^0.5 .* (exp.(-(vs.u .- 0.99) .^ 2) .+ exp.(-(vs.u .+ 0.99) .^ 2))
-w0 = KB.moments_conserve(f0, vs.u, vs.weights)
+w0 = moments_conserve(f0, vs.u, vs.weights)
 prim0 = quantum_conserve_prim(w0, β)
 F0 = fd_equilibrium(vs.u, prim0, β)
 τ0 = gas.Kn / w0[1]

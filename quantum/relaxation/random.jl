@@ -1,3 +1,7 @@
+# ============================================================
+# Random relaxation rate
+# ============================================================
+
 using OrdinaryDiffEq, CairoMakie, Langevin
 using KitBase.ProgressMeter: @showprogress
 using Base.Threads: @threads
