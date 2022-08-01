@@ -83,22 +83,22 @@ res = zeros(3)
 dt = KB.timestep(ks, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
-function step!(
-    fwL::T1,
-    ffL::T2,
-    w::T3,
-    prim::T3,
-    f::T4,
-    fwR::T1,
-    ffR::T2,
-    u::T5,
+function qstep!(
+    w,
+    prim,
+    f,
+    fwL,
+    ffL,
+    fwR,
+    ffR,
+    u,
     β,
     Kn,
     dx,
     dt,
     RES,
     AVG,
-) where {T1,T2,T3,T4,T5}
+)
 
     #--- store W^n and calculate H^n,\tau^n ---#
     w_old = deepcopy(w)
@@ -122,46 +122,37 @@ function step!(
 
 end
 
-function update!(
-    KS::KB.AbstractSolverSet,
-    ctr::AbstractVector{TC},
-    face::AbstractVector{TF},
-    dt,
-    residual,
-) where {TC,TF}
-
-    sumRes = zero(ctr[1].w)
-    sumAvg = zero(ctr[1].w)
-
-    @inbounds @threads for i = 1:KS.pSpace.nx
-        step!(
-            face[i].fw,
-            face[i].ff,
-            ctr[i].w,
-            ctr[i].prim,
-            ctr[i].f,
-            face[i+1].fw,
-            face[i+1].ff,
-            KS.vSpace.u,
-            KS.gas.γ,
-            KS.gas.Kn,
-            KS.ps.dx[i],
-            dt,
-            sumRes,
-            sumAvg,
-        )
-    end
-
-    for i in eachindex(residual)
-        residual[i] = sqrt(sumRes[i] * KS.pSpace.nx) / (sumAvg[i] + 1.e-7)
-    end
-
-    return nothing
+function qstep!(
+    KS,
+    cell,
+    faceL,
+    faceR,
+    p,
+    coll = :bgk;
+    st = step!,
+)
+    dt, dx, RES, AVG = p
+    qstep!(
+        cell.w,
+        cell.prim,
+        cell.f,
+        faceL.fw,
+        faceL.ff,
+        faceR.fw,
+        faceR.ff,
+        KS.vs.u,
+        KS.gas.γ,
+        KS.gas.Kn,
+        dx,
+        dt,
+        RES,
+        AVG,
+    )
 end
 
 @showprogress for iter = 1:nt
     KB.evolve!(ks, ctr, face, dt)
-    update!(ks, ctr, face, dt, res)
+    KB.update!(ks, ctr, face, dt, res; fn = qstep!)
 end
 
 @load "classical.jld2" sol
