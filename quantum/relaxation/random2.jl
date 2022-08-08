@@ -3,8 +3,6 @@
 # ============================================================
 
 using OrdinaryDiffEq, CairoMakie, Langevin
-using KitBase.ProgressMeter: @showprogress
-using Base.Threads: @threads
 
 cd(@__DIR__)
 include("../tools.jl")

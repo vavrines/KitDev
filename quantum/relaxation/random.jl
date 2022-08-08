@@ -3,8 +3,6 @@
 # ============================================================
 
 using OrdinaryDiffEq, CairoMakie, Langevin
-using KitBase.ProgressMeter: @showprogress
-using Base.Threads: @threads
 
 cd(@__DIR__)
 include("../tools.jl")
@@ -50,6 +48,13 @@ solGalerkinTen =
 
 sol = solGalerkinTen |> Array
 
+solMean = zeros(unum, tnum)
+solStd = zeros(unum, tnum)
+for i in axes(solMean, 1), j in axes(solMean, 2)
+    solMean[i, j] = mean(sol[:, i, j], uq.op)
+    solStd[i, j] = std(sol[:, i, j], uq.op)
+end
+
 begin
     fig = Figure()
     ax = Axis(fig[1, 1], xlabel = "u", ylabel = "f", title = "")
@@ -61,6 +66,13 @@ end
 begin
     fig = Figure()
     ax = Axis(fig[1, 1], xlabel = "u", ylabel = "t", title = "")
-    contourf!(sol[1, :, :])
+    contourf!(solMean)
+    fig
+end
+
+begin
+    fig = Figure()
+    ax = Axis(fig[1, 1], xlabel = "u", ylabel = "t", title = "")
+    contourf!(solStd)
     fig
 end

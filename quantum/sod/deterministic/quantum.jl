@@ -7,7 +7,7 @@ using KitBase.ProgressMeter: @showprogress
 cd(@__DIR__)
 include("../../tools.jl")
 
-set = KB.Setup(
+set = Setup(
     space = "1d1f1v",
     interpOrder = 2,
     boundary = ["fix", "fix"],
@@ -15,9 +15,9 @@ set = KB.Setup(
     cfl = 0.5,
 )
 
-ps = KB.PSpace1D(0, 1, 100, 1)
-vs = KB.VSpace1D(-5, 5, 60)
-gas = KB.Gas(Kn = 1e-3, γ = 2) # γ is β in quantum model
+ps = PSpace1D(0, 1, 100, 1)
+vs = VSpace1D(-5, 5, 60)
+gas = Gas(Kn = 1e-3, γ = 2) # γ is β in quantum model
 
 function ib_condition(set, ps, vs, gas)
     primL = [20.0, 0.0, 0.5] # [A, U, λ]
@@ -57,11 +57,11 @@ function ib_condition(set, ps, vs, gas)
 end
 
 fw, ff, bc, p = ib_condition(set, ps, vs, gas)
-ib = KB.IB1F{typeof(bc)}(fw, ff, bc, p)
+ib = IB1F{typeof(bc)}(fw, ff, bc, p)
 
-ks = KB.SolverSet(set, ps, vs, gas, ib, @__DIR__)
+ks = SolverSet(set, ps, vs, gas, ib, @__DIR__)
+ctr, face = init_fvm(ks)
 
-ctr = OffsetArray{KB.ControlVolume1F}(undef, axes(ks.ps.x, 1))
 for i in axes(ctr, 1)
     w = ks.ib.fw(ks.ps.x[i], ks.ib.p)
     prim = quantum_conserve_prim(w, ks.gas.γ)
@@ -70,41 +70,25 @@ for i in axes(ctr, 1)
 end
 ctr = StructArray(ctr)
 
-face = Array{KB.Interface1F}(undef, ks.ps.nx + 1)
-for i = 1:ks.ps.nx+1
-    face[i] = KB.Interface(
-        zero(ks.ib.fw(ks.ps.x[1], ks.ib.p)),
-        zero(ks.ib.ff(ks.ps.x[1], ks.ib.p)),
-        1,
-    )
-end
-
 res = zeros(3)
-dt = KB.timestep(ks, ctr, 0.0)
+dt = timestep(ks, ctr, 0.0)
 nt = floor(ks.set.maxTime / dt) |> Int
 
 function qstep!(w, prim, f, fwL, ffL, fwR, ffR, u, β, Kn, dx, dt, RES, AVG)
-
-    #--- store W^n and calculate H^n,\tau^n ---#
     w_old = deepcopy(w)
 
-    #--- update W^{n+1} ---#
     @. w += (fwL - fwR) / dx
     prim .= quantum_conserve_prim(w, β)
 
-    #--- record residuals ---#
     @. RES += (w - w_old)^2
     @. AVG += abs(w)
 
-    #--- calculate M^{n+1} and tau^{n+1} ---#
     M = fd_equilibrium(u, prim, β)
     τ = Kn / w[1]
 
-    #--- update distribution function ---#
     for i in eachindex(u)
         f[i] = (f[i] + (ffL[i] - ffR[i]) / dx + dt / τ * M[i]) / (1.0 + dt / τ)
     end
-
 end
 
 function qstep!(KS, cell, faceL, faceR, p, coll = :bgk; st = step!)
@@ -128,8 +112,8 @@ function qstep!(KS, cell, faceL, faceR, p, coll = :bgk; st = step!)
 end
 
 @showprogress for iter = 1:nt
-    KB.evolve!(ks, ctr, face, dt)
-    KB.update!(ks, ctr, face, dt, res; fn = qstep!)
+    evolve!(ks, ctr, face, dt)
+    update!(ks, ctr, face, dt, res; fn = qstep!)
 end
 
 @load "classical.jld2" sol
